@@ -1,0 +1,366 @@
+name: CD
+
+# ─────────────────────────────────────────────────────────
+# 트리거: CI 워크플로우 완료 후 자동 실행 (main 브랜치 한정)
+#
+# 파이프라인 구조 (5단계 직렬 배포 체인):
+#
+#   [docker-build-push]
+#         ↓
+#   [container-scan]
+#         ↓
+#       [e2e]           ← Actions 러너에서 서버 자동 기동 후 테스트
+#         ↓
+#   [pages-deploy]
+#         ↓
+#   [smoke-test]
+#
+# 교육적 관점 (지속적 배포, Continuous Delivery):
+# 별도 스테이징 서버 없이 Actions 러너 내에서 Docker 이미지를 검증하고
+# GitHub Pages 로 정적 배포까지 자동화한다.
+# 비유: 공장 품질검사(CI) → 창고 입고(Registry) → 보안 검수(Container Scan)
+#       → 현장 시험 운행(E2E) → 공개 출하(Pages)
+# ─────────────────────────────────────────────────────────
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  # ═══════════════════════════════════════════════════════
+  # Job 1: Docker 이미지 빌드 및 GHCR 푸시 (불변 이미지 생성)
+  #
+  # SHA 태그(sha-{GITHUB_SHA}): 동일 커밋은 항상 동일 이미지를 보장 (불변성).
+  # latest 태그: 가장 최근 성공 빌드를 가리키는 포인터.
+  # GHA 캐시(type=gha): 레이어 변경이 없으면 재빌드를 생략하여 빌드 시간을 단축한다.
+  # GITHUB_TOKEN: GitHub 이 자동 제공하므로 별도 시크릿 등록이 불필요하다.
+  # ═══════════════════════════════════════════════════════
+  docker-build-push:
+    name: Docker Build and Push to GHCR
+    runs-on: ubuntu-latest
+    # CI 파이프라인이 실패한 경우 CD 전체를 차단하는 Guard Condition
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: 소스 코드 체크아웃
+        uses: actions/checkout@v4
+
+      # Docker Buildx: 멀티플랫폼 빌드 및 고급 레이어 캐싱을 지원하는 빌더
+      - name: Docker Buildx 설정
+        uses: docker/setup-buildx-action@v3
+
+      # GITHUB_TOKEN 으로 GHCR 인증 — 외부 레지스트리 자격증명 불필요
+      - name: GHCR 로그인 (GitHub Container Registry)
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Frontend 이미지 빌드 및 푸시
+      # context: 루트(.) — nginx.conf 가 저장소 루트에 위치하므로 필수
+      # cache scope=frontend: 백엔드와 독립적으로 레이어 캐시를 관리한다
+      - name: Frontend Docker 이미지 빌드 및 GHCR 푸시
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: frontend/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/card-match-game/frontend:sha-${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/card-match-game/frontend:latest
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+      # Backend 이미지 빌드 및 푸시
+      # context: ./backend — Dockerfile 이 backend/ 내부 파일만 참조하므로 컨텍스트를 최소화한다
+      - name: Backend Docker 이미지 빌드 및 GHCR 푸시
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: backend/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/card-match-game/backend:sha-${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/card-match-game/backend:latest
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+      # ── 결과 가시성: GitHub Step Summary 출력 ────────────
+      - name: Docker 빌드 및 푸시 결과 요약 출력
+        if: always()
+        run: |
+          echo "## Docker 이미지 빌드 및 GHCR 푸시 결과" >> $GITHUB_STEP_SUMMARY
+          echo "| 이미지 | 태그 | 상태 |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend | sha-${{ github.sha }}, latest | ${{ job.status }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend | sha-${{ github.sha }}, latest | ${{ job.status }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Registry: ghcr.io/${{ github.repository_owner }}/card-match-game" >> $GITHUB_STEP_SUMMARY
+
+  # ═══════════════════════════════════════════════════════
+  # Job 2: 컨테이너 이미지 보안 스캔 (Trivy)
+  #
+  # CI 의 파일시스템 스캔과 다르게, 이미지 스캔은 Alpine OS 레이어와
+  # 멀티 스테이지 빌드 결과물 전체를 검사하여 추가 취약점을 탐지한다.
+  # CRITICAL 취약점 발견 시 이후 배포 단계를 즉시 차단하여 오염을 방지한다.
+  # ═══════════════════════════════════════════════════════
+  container-scan:
+    name: Container Security Scan (Trivy)
+    runs-on: ubuntu-latest
+    needs: [docker-build-push]
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: 소스 코드 체크아웃
+        uses: actions/checkout@v4
+
+      # Trivy 가 GHCR 의 프라이빗 이미지를 풀하기 위해 로그인이 필요하다
+      - name: GHCR 로그인
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Frontend 이미지 스캔
+      # exit-code: 1 — CRITICAL 취약점 발견 시 파이프라인 즉시 중단
+      # ignore-unfixed: true — 패치 없는 취약점 제외 (false positive 감소)
+      - name: Frontend 컨테이너 이미지 보안 스캔
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'ghcr.io/${{ github.repository_owner }}/card-match-game/frontend:sha-${{ github.sha }}'
+          format: 'table'
+          severity: 'CRITICAL'
+          exit-code: '1'
+          ignore-unfixed: true
+
+      # Backend 이미지 스캔
+      - name: Backend 컨테이너 이미지 보안 스캔
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'ghcr.io/${{ github.repository_owner }}/card-match-game/backend:sha-${{ github.sha }}'
+          format: 'table'
+          severity: 'CRITICAL'
+          exit-code: '1'
+          ignore-unfixed: true
+
+      # ── 결과 가시성: GitHub Step Summary 출력 ────────────
+      - name: 컨테이너 스캔 결과 요약 출력
+        if: always()
+        run: |
+          echo "## 컨테이너 보안 스캔 결과 (Trivy)" >> $GITHUB_STEP_SUMMARY
+          echo "| 이미지 | 기준 | 상태 |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend (sha-${{ github.sha }}) | CRITICAL | ${{ job.status }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend (sha-${{ github.sha }}) | CRITICAL | ${{ job.status }} |" >> $GITHUB_STEP_SUMMARY
+
+  # ═══════════════════════════════════════════════════════
+  # Job 3: E2E 테스트 (Playwright — Actions 러너 내 서버 자동 기동)
+  #
+  # 별도 스테이징 서버 없이 Actions 러너에서 직접 서버를 기동하여 E2E 를 수행한다.
+  # playwright.config.ts 의 webServer 설정이 자동으로:
+  #   1. backend: npm run dev (port 3001)
+  #   2. frontend: npm run build && npm run preview (port 4173)
+  # 를 기동한 후 테스트를 실행하고, 완료 시 서버를 종료한다.
+  #
+  # 교육적 관점 (Self-Contained Test):
+  # PLAYWRIGHT_BASE_URL 을 설정하지 않으면 webServer 가 활성화되어
+  # 외부 의존성 없이 완전히 독립적인 E2E 환경이 구성된다.
+  # 비유: 공장 시험실에서 제품을 완전히 조립한 뒤 자체 검사하는 것과 같다.
+  # ═══════════════════════════════════════════════════════
+  e2e:
+    name: E2E Tests (Playwright — Self-Contained)
+    runs-on: ubuntu-latest
+    needs: [container-scan]
+
+    steps:
+      - name: 소스 코드 체크아웃
+        uses: actions/checkout@v4
+
+      # ── Backend 의존성 설치 (webServer 기동에 필요) ───────
+      - name: Node.js 설정 — Backend (npm 캐시 활성화)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Backend 의존성 설치
+        run: npm ci
+        working-directory: backend
+
+      # ── Frontend 의존성 설치 (webServer 기동에 필요) ──────
+      - name: Node.js 설정 — Frontend (npm 캐시 활성화)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Frontend 의존성 설치
+        run: npm ci
+        working-directory: frontend
+
+      # ── E2E 의존성 설치 ───────────────────────────────────
+      - name: Node.js 설정 — E2E (npm 캐시 활성화)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          cache-dependency-path: e2e/package-lock.json
+
+      - name: E2E 의존성 설치
+        run: npm ci
+        working-directory: e2e
+
+      # CI 시간 최소화를 위해 Chromium 단일 브라우저만 설치한다
+      - name: Playwright Chromium 브라우저 설치
+        run: npx playwright install chromium --with-deps
+        working-directory: e2e
+
+      # PLAYWRIGHT_BASE_URL 미설정 → playwright.config.ts 의 webServer 가 자동 활성화된다
+      # CI: true → workers: 1 (직렬 실행), reuseExistingServer: false (항상 신규 기동)
+      - name: E2E 테스트 실행 (백엔드 + 프론트엔드 자동 기동)
+        run: npx playwright test
+        working-directory: e2e
+        env:
+          CI: true
+
+      # 테스트 실패 시 HTML 리포트를 7일간 보관하여 원인 분석에 활용한다
+      - name: 실패 시 Playwright 리포트 Artifact 업로드
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-${{ github.sha }}
+          path: e2e/playwright-report/
+          retention-days: 7
+
+      # ── 결과 가시성: GitHub Step Summary 출력 ────────────
+      - name: E2E 테스트 결과 요약 출력
+        if: always()
+        run: |
+          echo "## E2E 테스트 결과 (Self-Contained)" >> $GITHUB_STEP_SUMMARY
+          echo "| 항목 | 값 |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| 테스트 환경 | Actions 러너 내 로컬 서버 (webServer 자동 기동) |" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend | http://localhost:3001 |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend | http://localhost:4173 |" >> $GITHUB_STEP_SUMMARY
+          echo "| 커밋 SHA | ${{ github.sha }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 테스트 상태 | ${{ job.status }} |" >> $GITHUB_STEP_SUMMARY
+
+  # ═══════════════════════════════════════════════════════
+  # Job 4: GitHub Pages 정적 배포
+  #
+  # E2E 테스트 통과 후 프론트엔드 빌드 산출물을 GitHub Pages 에 공개한다.
+  # configure-pages: 프로젝트 페이지의 base_path 를 동적으로 획득한다.
+  # --base 옵션: Vite 빌드 시 올바른 경로 prefix 를 적용한다.
+  # environment.url: Actions 인터페이스에서 배포 URL 링크가 자동으로 표시된다.
+  #
+  # 사전 조건: 저장소 Settings > Pages > Source 를 GitHub Actions 로 설정해야 한다.
+  # ═══════════════════════════════════════════════════════
+  pages-deploy:
+    name: Deploy to GitHub Pages
+    runs-on: ubuntu-latest
+    needs: [e2e]
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: 소스 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Node.js 설정 — Frontend (npm 캐시 활성화)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Frontend 의존성 설치
+        run: npm ci
+        working-directory: frontend
+
+      # base_path: 프로젝트 페이지 경로를 동적으로 획득한다 (예: /card-match-game/)
+      - name: GitHub Pages 설정 및 base_path 획득
+        uses: actions/configure-pages@v5
+        id: pages
+
+      # TypeScript 컴파일 후 Vite 빌드 시 base_path 적용
+      # 이렇게 해야 asset 경로(JS, CSS, 이미지)가 Pages URL 기준으로 올바르게 생성된다
+      - name: Frontend 프로덕션 빌드 (GitHub Pages base 경로 적용)
+        run: npx tsc -b && npx vite build --base="${{ steps.pages.outputs.base_path }}"
+        working-directory: frontend
+
+      # frontend/dist 디렉토리를 Pages 배포용 Artifact 로 패키징한다
+      - name: GitHub Pages Artifact 업로드 (frontend/dist)
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: frontend/dist
+
+      # 업로드된 Artifact 를 GitHub Pages 에 배포한다
+      - name: GitHub Pages 배포
+        uses: actions/deploy-pages@v4
+        id: deployment
+
+      # ── 결과 가시성: GitHub Step Summary 출력 ────────────
+      - name: GitHub Pages 배포 결과 요약 출력
+        if: always()
+        run: |
+          echo "## GitHub Pages 배포 결과" >> $GITHUB_STEP_SUMMARY
+          echo "| 항목 | 값 |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| 배포 URL | ${{ steps.deployment.outputs.page_url }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 커밋 SHA | ${{ github.sha }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 배포 상태 | ${{ job.status }} |" >> $GITHUB_STEP_SUMMARY
+
+  # ═══════════════════════════════════════════════════════
+  # Job 5: GitHub Pages Smoke Test (사이트 생존 여부 확인)
+  #
+  # 배포 직후 CDN 전파 지연을 고려하여 최대 5회, 10초 간격으로 재시도한다.
+  # curl -sSf: HTTP 200 이외의 응답은 오류로 처리하여 파이프라인을 실패시킨다.
+  # 비유: 음식 배달 후 고객이 수령 여부를 전화로 확인하는 것과 같다.
+  # ═══════════════════════════════════════════════════════
+  smoke-test:
+    name: Smoke Test (GitHub Pages 생존 확인)
+    runs-on: ubuntu-latest
+    needs: [pages-deploy]
+
+    steps:
+      # CDN 전파 완료를 위해 재시도 로직으로 접속을 확인한다
+      - name: GitHub Pages 사이트 생존 여부 확인 (curl Smoke Test)
+        run: |
+          PAGE_URL="${{ needs.pages-deploy.outputs.page_url }}"
+          echo "Smoke Test 대상 URL: $PAGE_URL"
+          curl -sSf \
+            --retry 5 \
+            --retry-delay 10 \
+            --retry-connrefused \
+            --max-time 30 \
+            "$PAGE_URL"
+          echo "Smoke Test 통과: $PAGE_URL 에서 HTTP 200 응답 수신"
+
+      # ── 결과 가시성: GitHub Step Summary 출력 ────────────
+      - name: Smoke Test 결과 요약 출력
+        if: always()
+        run: |
+          echo "## Smoke Test 결과" >> $GITHUB_STEP_SUMMARY
+          echo "| 항목 | 값 |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| 검증 URL | ${{ needs.pages-deploy.outputs.page_url }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 재시도 횟수 | 최대 5회 (10초 간격) |" >> $GITHUB_STEP_SUMMARY
+          echo "| 최종 상태 | ${{ job.status }} |" >> $GITHUB_STEP_SUMMARY

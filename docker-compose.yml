@@ -1,0 +1,37 @@
+services:
+  # ─────────────────────────────────────────────────────────
+  # Backend: Express API 서버 (port 3001)
+  #
+  # 교육적 관점 (DevOps):
+  # healthcheck로 backend가 완전히 기동된 후에만 frontend가 시작된다.
+  # depends_on.condition: service_healthy 가 이를 보장한다.
+  # ─────────────────────────────────────────────────────────
+  backend:
+    build: ./backend
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: production
+    healthcheck:
+      # GET /health → { status: 'ok' } 응답 확인
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
+      interval: 10s      # 10초마다 체크
+      timeout: 5s        # 5초 안에 응답 없으면 실패
+      retries: 3         # 3회 연속 실패 시 unhealthy
+      start_period: 10s  # 기동 초기 10초는 실패 무시
+
+  # ─────────────────────────────────────────────────────────
+  # Frontend: React 앱 (nginx로 서빙, port 8080)
+  #
+  # build.context를 루트(.)로 설정하는 이유:
+  # frontend/Dockerfile에서 루트의 nginx.conf를 COPY해야 하기 때문
+  # ─────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      backend:
+        condition: service_healthy  # AC: backend healthy 후에만 기동
