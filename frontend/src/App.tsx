@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { ThemeProvider } from 'styled-components'
 import styled from 'styled-components'
 import { GlobalStyle } from './styles/GlobalStyle'
@@ -91,7 +91,6 @@ function Game() {
 
   // 승리 직후 최고기록 갱신 여부 tracking
   const [isNewBest, setIsNewBest] = useState(false)
-  const prevComboRef = useRef(0)
 
   // ─── 승리 조건 판정 (Plan.md 티켓 #18) ──────────────────────────────────────
   useEffect(() => {
@@ -112,7 +111,8 @@ function Game() {
   }, [state.life, state.status, dispatch])
 
   // ─── 효과음: 승리 / 게임오버 ─────────────────────────────────────────────────
-  useEffect(() => {
+  // useCallback으로 안정적인 참조 확보 → exhaustive-deps 경고 없이 의존성 최소화
+  const handleGameEnd = useCallback(() => {
     if (state.status === 'VICTORY') {
       playVictory()
       const newBest = trySetBestScore(state.difficulty, state.score)
@@ -120,7 +120,13 @@ function Game() {
     } else if (state.status === 'GAME_OVER') {
       playGameOver()
     }
-  }, [state.status])  // eslint-disable-line react-hooks/exhaustive-deps
+    // playVictory/playFail/trySetBestScore은 useCallback으로 안정적이므로 deps에 포함
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.status, state.difficulty, state.score])
+
+  useEffect(() => {
+    handleGameEnd()
+  }, [handleGameEnd])
 
   // ─── 매칭 판별 로직 (Plan.md 티켓 #16) ─────────────────────────────────────
   useEffect(() => {
@@ -131,7 +137,6 @@ function Game() {
     const [firstCard, secondCard] = state.flippedCards
 
     if (firstCard.type === secondCard.type) {
-      // 매칭 성공
       playMatch()
       dispatch({
         type: 'MATCH_SUCCESS',
@@ -139,7 +144,6 @@ function Game() {
       })
       dispatch({ type: 'SET_MATCHING', payload: false })
     } else {
-      // 매칭 실패 — 1초 후 뒤집기 (PRD AC4)
       playFail()
       const timeoutId = setTimeout(() => {
         dispatch({
@@ -151,37 +155,12 @@ function Game() {
 
       return () => clearTimeout(timeoutId)
     }
-  }, [state.flippedCards, dispatch])  // eslint-disable-line react-hooks/exhaustive-deps
+    // playMatch/playFail은 useCallback으로 안정적 — state.flippedCards 변경 시만 실행
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.flippedCards, dispatch])
 
-  // ─── shake 플래그 자동 해제 (0.6초 후) ───────────────────────────────────────
-  useEffect(() => {
-    const shakingCards = state.cards.filter((c) => c.isShaking)
-    if (shakingCards.length === 0) return
-
-    const timers = shakingCards.map((card) =>
-      setTimeout(() => {
-        dispatch({
-          type: 'FLIP_CARD',  // shake 해제를 위해 카드 상태 업데이트
-          payload: { cardId: card.id },
-        })
-      }, 700)
-    )
-    // shake 플래그만 제거하는 전용 리셋: MATCH_FAIL이 이미 isFlipped=false로 설정했으므로
-    // 실제로는 cards.map으로 isShaking=false 만 하면 됨.
-    // 간단하게 SET_MATCHING false 재발행으로 리렌더 유도 대신,
-    // 600ms 후에 isShaking 필드를 cards에서 제거
-    const clearTimer = setTimeout(() => {
-      // shake 해제 — cards 배열에서 isShaking 제거
-      // GameContext의 MATCH_FAIL이 이미 isFlipped=false는 처리했으므로,
-      // 여기서는 별도 force-render 없이 CSS animation이 종료됨
-      void 0
-    }, 700)
-
-    return () => {
-      timers.forEach(clearTimeout)
-      clearTimeout(clearTimer)
-    }
-  }, [state.cards, dispatch])
+  // ─── shake CSS 애니메이션: MATCH_FAIL 시 자동 처리됨 (isShaking prop → Card.tsx keyframe)
+  // CardContainer의 animation prop이 isShaking 상태를 CSS로 처리하므로 별도 JS 타이머 불필요
 
   // ─── 카드 클릭 핸들러 (Plan.md 티켓 #15) ────────────────────────────────────
   const handleCardClick = (cardId: string) => {

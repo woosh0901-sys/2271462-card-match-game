@@ -17,7 +17,7 @@ describe('INIT_GAME', () => {
     const cards = [makeCard('c1', 'apple'), makeCard('c2', 'apple')]
     const next = gameReducer(initialState, {
       type: 'INIT_GAME',
-      payload: { gameId: 'game-1', cards },
+      payload: { gameId: 'game-1', cards, difficulty: 'normal', gridCols: 4 },
     })
     expect(next.status).toBe('PLAYING')
     expect(next.life).toBe(3)
@@ -33,7 +33,7 @@ describe('INIT_GAME', () => {
     expect(() =>
       gameReducer(frozen, {
         type: 'INIT_GAME',
-        payload: { gameId: 'x', cards: [] },
+        payload: { gameId: 'x', cards: [], difficulty: 'normal', gridCols: 4 },
       })
     ).not.toThrow()
   })
