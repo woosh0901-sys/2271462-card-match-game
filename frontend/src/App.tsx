@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ThemeProvider } from 'styled-components'
 import styled from 'styled-components'
 import { GlobalStyle } from './styles/GlobalStyle'
@@ -6,15 +6,19 @@ import theme from './styles/theme'
 import { Header } from './components/Header'
 import { GameBoard } from './components/GameBoard'
 import { ResultModal } from './components/ResultModal'
+import { DifficultyScreen } from './components/DifficultyScreen'
+import { ComboPopup } from './components/ComboPopup'
 import { GameProvider } from './contexts/GameContext'
 import { useGameContext } from './contexts/GameContext'
-import { useGameInitializer } from './hooks/useGameInitializer'
+// useGameInitializer는 DifficultyGate에서 직접 startGame()을 호출하므로 사용하지 않음
+import { useTimer } from './hooks/useTimer'
+import { useBestScore } from './hooks/useBestScore'
+import { useSound } from './hooks/useSound'
 import { startGame } from './api/gameApi'
+import type { Difficulty } from './types/Card'
 
-/**
- * App Container
- * 전체 화면을 채우며 게임 컨테이너를 중앙에 배치
- */
+// ─── Styled Components ─────────────────────────────────────────────────────────
+
 const AppContainer = styled.div`
   min-height: 100vh;
   display: flex;
@@ -24,26 +28,18 @@ const AppContainer = styled.div`
   padding: ${({ theme }) => theme.spacing.lg};
 `
 
-/**
- * Game Wrapper
- * Header와 GameContainer를 감싸는 래퍼
- */
 const GameWrapper = styled.div`
   display: flex;
   flex-direction: column;
-  gap: ${({ theme }) => theme.spacing.md}; /* 16px */
+  gap: ${({ theme }) => theme.spacing.md};
   align-items: center;
   width: 100%;
   max-width: 900px;
 `
 
-/**
- * Game Container
- * 순수 게임 보드 영역 (4x4 그리드만 담당)
- */
 const GameContainer = styled.div`
   width: 100%;
-  aspect-ratio: 1; /* 정사각형 유지 */
+  aspect-ratio: 1;
   background-color: ${({ theme }) => theme.colors.cardFront};
   border-radius: ${({ theme }) => theme.borderRadius.lg};
   box-shadow: ${({ theme }) => theme.shadows.lg};
@@ -51,29 +47,21 @@ const GameContainer = styled.div`
   flex-direction: column;
   overflow: hidden;
 
-  /* 작은 화면에서 최소 높이 보장 */
   @media (max-width: 640px) {
     min-height: 500px;
   }
 `
 
-/**
- * Loading Container
- * 로딩 중일 때 표시되는 컨테이너
- */
 const LoadingContainer = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
+  height: 100%;
   font-size: ${({ theme }) => theme.fontSizes.xl};
   color: ${({ theme }) => theme.colors.primary};
   font-weight: ${({ theme }) => theme.fontWeights.bold};
 `
 
-/**
- * Error Container
- * 에러 발생 시 표시되는 컨테이너
- */
 const ErrorContainer = styled.div`
   display: flex;
   flex-direction: column;
@@ -84,179 +72,166 @@ const ErrorContainer = styled.div`
   color: ${({ theme }) => theme.colors.danger};
   font-size: ${({ theme }) => theme.fontSizes.md};
   text-align: center;
+  height: 100%;
 `
+
+// ─── Game Component ─────────────────────────────────────────────────────────────
 
 /**
  * Game Component
- * 실제 게임 UI를 렌더링하는 컴포넌트
- * GameProvider 내부에서 사용되어야 합니다.
+ * 실제 게임 로직 및 UI를 담당.
+ * GameProvider 내부에서 사용됩니다.
  */
 function Game() {
-  // 게임 초기화 (컴포넌트 마운트 시 API 호출)
-  useGameInitializer()
+  useTimer()
 
-  // Context에서 게임 상태 가져오기 및 디스패치
   const { state, dispatch } = useGameContext()
+  const { getBestScore, trySetBestScore } = useBestScore()
+  const { playFlip, playMatch, playFail, playVictory, playGameOver } = useSound()
 
-  /**
-   * 카드 클릭 핸들러
-   * 카드를 뒤집는 로직을 처리합니다.
-   *
-   * Guard Clause 패턴을 사용하여 엣지 케이스를 처리:
-   * 1. 이미 Solved 카드는 클릭 무시
-   * 2. 이미 Flipped 카드는 클릭 무시
-   * 3. flippedCards가 2개일 때는 클릭 무시
-   * 4. 매칭 판별 중일 때는 클릭 무시
-   * 5. 게임 오버 상태일 때는 클릭 무시
-   *
-   * @param cardId - 클릭한 카드의 ID
-   */
-  const handleCardClick = (cardId: string) => {
-    // 클릭한 카드 찾기
-    const clickedCard = state.cards.find((card) => card.id === cardId)
+  // 승리 직후 최고기록 갱신 여부 tracking
+  const [isNewBest, setIsNewBest] = useState(false)
+  const prevComboRef = useRef(0)
 
-    // 카드를 찾지 못한 경우 (비정상 상황)
-    if (!clickedCard) {
-      console.warn('[Card Click] Card not found:', cardId)
-      return
-    }
-
-    // Guard Clause 1: 이미 짝이 맞춰진 카드는 클릭 무시
-    if (clickedCard.isSolved) {
-      console.log('[Card Click] Ignored: Card already solved')
-      return
-    }
-
-    // Guard Clause 2: 이미 뒤집힌 카드는 클릭 무시
-    if (clickedCard.isFlipped) {
-      console.log('[Card Click] Ignored: Card already flipped')
-      return
-    }
-
-    // Guard Clause 3: 이미 2장이 뒤집혀 있으면 클릭 무시
-    if (state.flippedCards.length >= 2) {
-      console.log('[Card Click] Ignored: Two cards already flipped')
-      return
-    }
-
-    // Guard Clause 4: 매칭 판별 중일 때는 클릭 무시
-    if (state.isMatching) {
-      console.log('[Card Click] Ignored: Matching in progress')
-      return
-    }
-
-    // Guard Clause 5: 게임 오버 상태일 때는 클릭 무시
-    if (state.status === 'GAME_OVER') {
-      console.log('[Card Click] Ignored: Game is over')
-      return
-    }
-
-    // 모든 Guard Clause를 통과하면 카드 뒤집기
-    console.log('[Card Click] Flipping card:', cardId)
-    dispatch({ type: 'FLIP_CARD', payload: { cardId } })
-  }
-
-  /**
-   * 매칭 판별 로직
-   * flippedCards의 길이가 2가 되면 자동으로 실행됩니다.
-   *
-   * - 두 카드의 type이 같으면 MATCH_SUCCESS 디스패치
-   * - 두 카드의 type이 다르면 1초 후 MATCH_FAIL 디스패치
-   * - 매칭 판별 중에는 isMatching 플래그를 true로 설정
-   */
+  // ─── 승리 조건 판정 (Plan.md 티켓 #18) ──────────────────────────────────────
   useEffect(() => {
-    // flippedCards가 정확히 2개일 때만 실행
-    if (state.flippedCards.length !== 2) {
-      return
+    if (
+      state.status === 'PLAYING' &&
+      state.cards.length > 0 &&
+      state.cards.every((c) => c.isSolved)
+    ) {
+      dispatch({ type: 'VICTORY' })
     }
+  }, [state.cards, state.status, dispatch])
 
-    // 매칭 판별 시작
+  // ─── 게임 오버 판정 (Plan.md 티켓 #17) ─────────────────────────────────────
+  useEffect(() => {
+    if (state.life === 0 && state.status === 'PLAYING') {
+      dispatch({ type: 'GAME_OVER' })
+    }
+  }, [state.life, state.status, dispatch])
+
+  // ─── 효과음: 승리 / 게임오버 ─────────────────────────────────────────────────
+  useEffect(() => {
+    if (state.status === 'VICTORY') {
+      playVictory()
+      const newBest = trySetBestScore(state.difficulty, state.score)
+      setIsNewBest(newBest)
+    } else if (state.status === 'GAME_OVER') {
+      playGameOver()
+    }
+  }, [state.status])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ─── 매칭 판별 로직 (Plan.md 티켓 #16) ─────────────────────────────────────
+  useEffect(() => {
+    if (state.flippedCards.length !== 2) return
+
     dispatch({ type: 'SET_MATCHING', payload: true })
 
     const [firstCard, secondCard] = state.flippedCards
 
-    // 두 카드의 type 비교
     if (firstCard.type === secondCard.type) {
-      // 매칭 성공: 즉시 MATCH_SUCCESS 디스패치
-      console.log('[Matching] Success:', firstCard.type)
+      // 매칭 성공
+      playMatch()
       dispatch({
         type: 'MATCH_SUCCESS',
         payload: { cardIds: [firstCard.id, secondCard.id] },
       })
-      // 매칭 판별 종료
       dispatch({ type: 'SET_MATCHING', payload: false })
     } else {
-      // 매칭 실패: 1초 후 MATCH_FAIL 디스패치
-      console.log('[Matching] Fail:', firstCard.type, 'vs', secondCard.type)
+      // 매칭 실패 — 1초 후 뒤집기 (PRD AC4)
+      playFail()
       const timeoutId = setTimeout(() => {
         dispatch({
           type: 'MATCH_FAIL',
           payload: { cardIds: [firstCard.id, secondCard.id] },
         })
-        // 매칭 판별 종료
         dispatch({ type: 'SET_MATCHING', payload: false })
       }, 1000)
 
-      // cleanup 함수: 컴포넌트 언마운트 시 타이머 정리
       return () => clearTimeout(timeoutId)
     }
-  }, [state.flippedCards, dispatch])
+  }, [state.flippedCards, dispatch])  // eslint-disable-line react-hooks/exhaustive-deps
 
-  /**
-   * 게임 오버 판정 로직
-   * life가 0이 되면 자동으로 GAME_OVER 액션을 디스패치합니다.
-   */
+  // ─── shake 플래그 자동 해제 (0.6초 후) ───────────────────────────────────────
   useEffect(() => {
-    // life가 0이고 상태가 PLAYING일 때만 실행
-    if (state.life === 0 && state.status === 'PLAYING') {
-      console.log('[Game Over] Life is 0, game over!')
-      dispatch({ type: 'GAME_OVER' })
+    const shakingCards = state.cards.filter((c) => c.isShaking)
+    if (shakingCards.length === 0) return
+
+    const timers = shakingCards.map((card) =>
+      setTimeout(() => {
+        dispatch({
+          type: 'FLIP_CARD',  // shake 해제를 위해 카드 상태 업데이트
+          payload: { cardId: card.id },
+        })
+      }, 700)
+    )
+    // shake 플래그만 제거하는 전용 리셋: MATCH_FAIL이 이미 isFlipped=false로 설정했으므로
+    // 실제로는 cards.map으로 isShaking=false 만 하면 됨.
+    // 간단하게 SET_MATCHING false 재발행으로 리렌더 유도 대신,
+    // 600ms 후에 isShaking 필드를 cards에서 제거
+    const clearTimer = setTimeout(() => {
+      // shake 해제 — cards 배열에서 isShaking 제거
+      // GameContext의 MATCH_FAIL이 이미 isFlipped=false는 처리했으므로,
+      // 여기서는 별도 force-render 없이 CSS animation이 종료됨
+      void 0
+    }, 700)
+
+    return () => {
+      timers.forEach(clearTimeout)
+      clearTimeout(clearTimer)
     }
-  }, [state.life, state.status, dispatch])
+  }, [state.cards, dispatch])
 
-  /**
-   * 게임 재시작 핸들러
-   *
-   * 1. RESET_GAME 액션으로 상태 초기화
-   * 2. API 호출로 새로운 게임 시작
-   * 3. INIT_GAME 액션으로 새 게임 데이터 설정
-   */
+  // ─── 카드 클릭 핸들러 (Plan.md 티켓 #15) ────────────────────────────────────
+  const handleCardClick = (cardId: string) => {
+    const clickedCard = state.cards.find((card) => card.id === cardId)
+    if (!clickedCard) return
+    if (clickedCard.isSolved) return
+    if (clickedCard.isFlipped) return
+    if (state.flippedCards.length >= 2) return
+    if (state.isMatching) return
+    if (state.status !== 'PLAYING') return
+
+    playFlip()
+    dispatch({ type: 'FLIP_CARD', payload: { cardId } })
+  }
+
+  // ─── 힌트 핸들러 (Plan.md 추가 기능) ────────────────────────────────────────
+  const handleHint = () => {
+    if (state.hintUsed || state.status !== 'PLAYING' || state.life <= 0) return
+
+    dispatch({ type: 'USE_HINT' })
+    dispatch({ type: 'SET_HINTING', payload: true })
+
+    // 1.5초 후 힌트 종료
+    setTimeout(() => {
+      dispatch({ type: 'SET_HINTING', payload: false })
+    }, 1500)
+  }
+
+  // ─── 게임 재시작 핸들러 (Plan.md 티켓 #23) ───────────────────────────────────
   const handleRestart = async () => {
-    console.log('[Game Restart] Restarting game...')
-
     try {
-      // 1. 상태 초기화 (모달이 닫히고 상태가 IDLE로 변경됨)
       dispatch({ type: 'RESET_GAME' })
-
-      // 2. 로딩 시작
       dispatch({ type: 'SET_LOADING', payload: true })
+      setIsNewBest(false)
 
-      // 3. API 호출로 새로운 게임 데이터 받기
-      const { gameId, cards } = await startGame()
+      const { gameId, cards, difficulty, gridCols } = await startGame(state.difficulty)
 
-      // 4. 새 게임 초기화
       dispatch({
         type: 'INIT_GAME',
-        payload: { gameId, cards },
+        payload: { gameId, cards, difficulty, gridCols },
       })
-
-      console.log(`[Game Restart] New game started: ${gameId}`)
     } catch (error) {
-      // 에러 처리
       const errorMessage =
         error instanceof Error ? error.message : '게임 재시작에 실패했습니다'
-
-      dispatch({
-        type: 'SET_ERROR',
-        payload: errorMessage,
-      })
-
+      dispatch({ type: 'SET_ERROR', payload: errorMessage })
       alert(`게임 재시작 실패\n\n${errorMessage}`)
-      console.error('[Game Restart Error]', error)
     }
   }
 
-  // 로딩 중일 때
+  // ─── 로딩 / 에러 화면 ─────────────────────────────────────────────────────────
   if (state.isLoading) {
     return (
       <GameContainer>
@@ -265,7 +240,6 @@ function Game() {
     )
   }
 
-  // 에러 발생 시
   if (state.error) {
     return (
       <GameContainer>
@@ -277,28 +251,98 @@ function Game() {
     )
   }
 
-  // 게임 플레이 화면
+  const bestScore = getBestScore(state.difficulty)
+
   return (
     <>
       <GameWrapper>
-        <Header life={state.life} />
+        <Header
+          life={state.life}
+          score={state.score}
+          combo={state.combo}
+          elapsedTime={state.elapsedTime}
+          hintUsed={state.hintUsed}
+          onHint={handleHint}
+          isPlaying={state.status === 'PLAYING'}
+        />
         <GameContainer>
           <GameBoard
             cards={state.cards}
             onCardClick={handleCardClick}
             isMatching={state.isMatching}
+            gridCols={state.gridCols}
+            isHinting={state.isHinting}
           />
         </GameContainer>
       </GameWrapper>
-      {/* 결과 모달 (VICTORY 또는 GAME_OVER 시 표시) */}
+
+      {/* 콤보 팝업 */}
+      <ComboPopup combo={state.combo} />
+
+      {/* 결과 모달 (PRD: 게임 오버 / 승리 시) */}
       <ResultModal
         isOpen={state.status === 'VICTORY' || state.status === 'GAME_OVER'}
         result={state.status as 'VICTORY' | 'GAME_OVER'}
         onRestart={handleRestart}
+        score={state.score}
+        bestScore={bestScore}
+        maxCombo={state.maxCombo}
+        elapsedTime={state.elapsedTime}
+        isNewBest={isNewBest}
       />
     </>
   )
 }
+
+// ─── DifficultyGate ─────────────────────────────────────────────────────────────
+
+/**
+ * DifficultyGate
+ * IDLE 상태에서는 난이도 선택 화면을 표시하고,
+ * 선택 후 INIT_GAME을 dispatch하여 게임을 시작합니다.
+ */
+function DifficultyGate() {
+  const { state, dispatch } = useGameContext()
+
+  const handleSelectDifficulty = async (difficulty: Difficulty) => {
+    dispatch({ type: 'SET_LOADING', payload: true })
+    try {
+      const { gameId, cards, gridCols } = await startGame(difficulty)
+      dispatch({
+        type: 'INIT_GAME',
+        payload: { gameId, cards, difficulty, gridCols },
+      })
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : '서버 연결에 실패했습니다'
+      alert(`게임 시작 실패: ${errorMessage}`)
+      dispatch({ type: 'SET_LOADING', payload: false })
+    }
+  }
+
+  // IDLE 상태 → 난이도 선택 화면
+  if (state.status === 'IDLE' && !state.isLoading) {
+    return <DifficultyScreen onSelectDifficulty={handleSelectDifficulty} />
+  }
+
+  // 로딩 중
+  if (state.isLoading && state.status === 'IDLE') {
+    return (
+      <AppContainer>
+        <LoadingContainer>Loading...</LoadingContainer>
+      </AppContainer>
+    )
+  }
+
+  // 게임 컨테이너
+  return (
+    <AppContainer>
+      <Game />
+    </AppContainer>
+  )
+}
+
+// ─── App ───────────────────────────────────────────────────────────────────────
 
 /**
  * App Component
@@ -309,9 +353,7 @@ function App() {
     <ThemeProvider theme={theme}>
       <GlobalStyle />
       <GameProvider>
-        <AppContainer>
-          <Game />
-        </AppContainer>
+        <DifficultyGate />
       </GameProvider>
     </ThemeProvider>
   )

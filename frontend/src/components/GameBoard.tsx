@@ -6,40 +6,42 @@ import { Card } from './Card'
  * GameBoard Props Interface
  */
 interface GameBoardProps {
-  /** 16개의 카드 배열 */
+  /** 카드 배열 */
   cards: CardType[]
   /** 카드 클릭 핸들러 */
   onCardClick: (cardId: string) => void
-  /** 매칭 판별 중 여부 (광클 방지용) */
+  /** 매칭 판별 중 여부 (광클 방지용 — TechSpec 5.3) */
   isMatching: boolean
+  /** 그리드 열 수 (Easy:3, Normal:4, Hard:5) */
+  gridCols: number
+  /** 힌트 활성화 여부 — 힌트 시 모든 카드 강제 앞면 */
+  isHinting: boolean
 }
 
 /**
  * Game Board Container
- * 4x4 CSS Grid 레이아웃으로 카드들을 배치
- * isMatching이 true일 때 pointer-events: none으로 광클 방지
+ * 동적 CSS Grid: gridCols를 기반으로 열 수 결정
+ * isMatching이 true일 때 pointer-events:none으로 광클 방지 (TechSpec 5.3)
  */
-const BoardContainer = styled.div<{ $isMatching: boolean }>`
-  width: 100%; /* GameContainer 너비에 맞춤 */
-  height: 100%; /* GameContainer 높이에 맞춤 */
+const BoardContainer = styled.div<{ $isMatching: boolean; $gridCols: number }>`
+  width: 100%;
+  height: 100%;
   display: grid;
-  grid-template-columns: repeat(4, 1fr); /* 4열 고정 */
-  grid-template-rows: repeat(4, 1fr); /* 4행 고정 (균등 배분) */
-  gap: ${({ theme }) => theme.spacing.sm}; /* 10px */
-  padding: ${({ theme }) => theme.spacing.sm}; /* 10px (md에서 sm으로 축소하여 카드 공간 확보) */
+  grid-template-columns: repeat(${({ $gridCols }) => $gridCols}, 1fr);
+  grid-auto-rows: 1fr;
+  gap: ${({ theme }) => theme.spacing.sm};
+  padding: ${({ theme }) => theme.spacing.sm};
   background-color: ${({ theme }) => theme.colors.background};
-  pointer-events: ${({ $isMatching }) =>
-    $isMatching ? 'none' : 'auto'}; /* 매칭 판별 중에는 클릭 차단 */
+  pointer-events: ${({ $isMatching }) => ($isMatching ? 'none' : 'auto')};
 `
 
 /**
  * Card Wrapper
- * Card 컴포넌트를 Grid에 맞추기 위한 래퍼
- * width: 100%로 그리드 셀을 꽉 채우고, aspect-ratio로 정사각형 유지
+ * Grid 셀을 꽉 채우고 정사각형 유지
  */
 const CardWrapper = styled.div`
-  width: 100%; /* 그리드 셀 너비에 맞춤 */
-  aspect-ratio: 1; /* 정사각형 그리드 셀 유지 */
+  width: 100%;
+  aspect-ratio: 1;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -47,26 +49,32 @@ const CardWrapper = styled.div`
 
 /**
  * GameBoard Component
- * 16개의 카드를 4x4 Grid로 표시하는 게임 보드
+ * 카드들을 동적 Grid로 표시 (난이도별 column 수 변동)
  *
- * @param {CardType[]} cards - 16개의 카드 배열
- * @param {Function} onCardClick - 카드 클릭 핸들러
- * @param {boolean} isMatching - 매칭 판별 중 여부 (광클 방지용)
- * @returns {JSX.Element} GameBoard 컴포넌트
- *
- * @example
- * <GameBoard cards={cards} onCardClick={handleCardClick} isMatching={false} />
+ * - Easy: 3×4 (12장)
+ * - Normal: 4×4 (16장)
+ * - Hard: 4×5 (20장, 5열 → grid-auto-rows로 행 자동 조절)
  */
 export const GameBoard: React.FC<GameBoardProps> = ({
   cards,
   onCardClick,
   isMatching,
+  gridCols,
+  isHinting,
 }) => {
   return (
-    <BoardContainer $isMatching={isMatching} data-testid="game-board">
+    <BoardContainer
+      $isMatching={isMatching || isHinting}
+      $gridCols={gridCols}
+      data-testid="game-board"
+    >
       {cards.map((card) => (
         <CardWrapper key={card.id}>
-          <Card cardData={card} onClick={() => onCardClick(card.id)} />
+          <Card
+            cardData={card}
+            onClick={() => onCardClick(card.id)}
+            forceFlip={isHinting && !card.isSolved}
+          />
         </CardWrapper>
       ))}
     </BoardContainer>

@@ -17,11 +17,20 @@ export interface Card {
 
   /** 카드 짝이 맞춰졌는지 여부 */
   isSolved: boolean;
+
+  /** 매칭 실패 시 shake 애니메이션 여부 */
+  isShaking?: boolean;
 }
 
 /**
+ * Difficulty Type
+ * 게임 난이도
+ */
+export type Difficulty = 'easy' | 'normal' | 'hard';
+
+/**
  * Fruit Types
- * 게임에서 사용하는 과일 타입들
+ * 게임에서 사용하는 과일 타입들 (Easy: 6종, Normal: 8종, Hard: 10종)
  */
 export type FruitType =
   | 'apple'
@@ -31,4 +40,7 @@ export type FruitType =
   | 'lemon'
   | 'orange'
   | 'strawberry'
-  | 'watermelon';
+  | 'watermelon'
+  | 'mango'
+  | 'kiwi';
+

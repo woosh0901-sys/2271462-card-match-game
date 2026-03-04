@@ -1,17 +1,26 @@
 import { randomUUID } from 'crypto';
-import { Card, FRUIT_TYPES } from '../types/Card';
+import { Card, Difficulty, DIFFICULTY_CONFIG, FRUIT_TYPES } from '../types/Card';
 import { shuffle } from './shuffle';
 
 /**
- * Generate 16 cards (8 types x 2 cards each) and shuffle them
+ * Generate cards based on difficulty and shuffle them.
  *
- * @returns Array of 16 shuffled Card objects
+ * | Difficulty | Types | Cards |
+ * |------------|-------|-------|
+ * | easy       |   6   |  12   |
+ * | normal     |   8   |  16   |
+ * | hard       |  10   |  20   |
+ *
+ * @param difficulty - Game difficulty (default: 'normal')
+ * @returns Shuffled Card array
  */
-export function generateCards(): Card[] {
+export function generateCards(difficulty: Difficulty = 'normal'): Card[] {
+  const { fruitCount } = DIFFICULTY_CONFIG[difficulty];
+  const selectedFruits = FRUIT_TYPES.slice(0, fruitCount);
   const cards: Card[] = [];
 
-  // Create 2 cards for each fruit type (8 types x 2 = 16 cards)
-  FRUIT_TYPES.forEach((fruitType) => {
+  // 각 과일 타입당 2장씩 생성
+  selectedFruits.forEach((fruitType) => {
     for (let i = 0; i < 2; i++) {
       cards.push({
         id: randomUUID(),
@@ -21,6 +30,5 @@ export function generateCards(): Card[] {
     }
   });
 
-  // Shuffle the cards using Fisher-Yates algorithm
   return shuffle(cards);
 }

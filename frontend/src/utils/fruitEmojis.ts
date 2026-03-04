@@ -16,6 +16,8 @@ export const FRUIT_EMOJIS: Record<FruitType, string> = {
   orange: '🍊',
   strawberry: '🍓',
   watermelon: '🍉',
+  mango: '🥭',
+  kiwi: '🥝',
 }
 
 /**

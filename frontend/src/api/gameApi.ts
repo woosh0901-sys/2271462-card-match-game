@@ -1,12 +1,13 @@
 import axios from 'axios'
-import type { Card, FruitType } from '../types/Card'
+import type { Card, Difficulty, FruitType } from '../types/Card'
 
 /**
  * API Response for /api/game/start
- * 백엔드에서 반환하는 게임 시작 응답 타입
  */
 interface GameStartResponse {
   gameId: string
+  difficulty: Difficulty
+  gridCols: number
   cards: Array<{
     id: string
     type: string
@@ -14,28 +15,47 @@ interface GameStartResponse {
   }>
 }
 
-// 8가지 과일 타입 (백엔드 FRUIT_TYPES와 동일)
-const FRUIT_TYPES: FruitType[] = [
+// 10가지 과일 타입 (폴백용, 백엔드 FRUIT_TYPES와 동일)
+const ALL_FRUIT_TYPES: FruitType[] = [
   'apple', 'banana', 'cherry', 'grape',
   'lemon', 'orange', 'strawberry', 'watermelon',
+  'mango', 'kiwi',
 ]
 
-// Fisher-Yates 셔플 (백엔드 shuffle.ts와 동일 알고리즘)
+const DIFFICULTY_FRUIT_COUNT: Record<Difficulty, number> = {
+  easy: 6,
+  normal: 8,
+  hard: 10,
+}
+
+const DIFFICULTY_GRID_COLS: Record<Difficulty, number> = {
+  easy: 3,
+  normal: 4,
+  hard: 5,
+}
+
+// Fisher-Yates 셔플
 function shuffleArray<T>(array: T[]): T[] {
   const arr = [...array]
   for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1))
-    ;[arr[i], arr[j]] = [arr[j], arr[i]]
+      ;[arr[i], arr[j]] = [arr[j], arr[i]]
   }
   return arr
 }
 
 /**
- * 클라이언트 사이드 게임 생성 (GitHub Pages 등 백엔드 없는 환경용 폴백)
- * 백엔드 generateCards() + shuffle() 로직을 브라우저에서 동일하게 실행한다.
+ * 클라이언트 사이드 게임 생성 폴백 (백엔드 없는 환경용)
  */
-function generateLocalGame(): { gameId: string; cards: Card[] } {
-  const rawCards = FRUIT_TYPES.flatMap((type) => [
+function generateLocalGame(difficulty: Difficulty): {
+  gameId: string
+  difficulty: Difficulty
+  gridCols: number
+  cards: Card[]
+} {
+  const fruitCount = DIFFICULTY_FRUIT_COUNT[difficulty]
+  const selectedFruits = ALL_FRUIT_TYPES.slice(0, fruitCount)
+  const rawCards = selectedFruits.flatMap((type) => [
     { id: crypto.randomUUID(), type, imgUrl: `/images/${type}.png` },
     { id: crypto.randomUUID(), type, imgUrl: `/images/${type}.png` },
   ])
@@ -44,25 +64,32 @@ function generateLocalGame(): { gameId: string; cards: Card[] } {
     isFlipped: false,
     isSolved: false,
   }))
-  return { gameId: crypto.randomUUID(), cards }
+  return {
+    gameId: crypto.randomUUID(),
+    difficulty,
+    gridCols: DIFFICULTY_GRID_COLS[difficulty],
+    cards,
+  }
 }
 
 /**
  * Start a new game
- * /api/game/start 엔드포인트를 호출하여 새 게임을 시작합니다.
- * 백엔드를 사용할 수 없는 환경(GitHub Pages 등)에서는 클라이언트 사이드 폴백으로 게임을 생성합니다.
+ * GET /api/game/start?difficulty=easy|normal|hard
  *
- * @returns Promise<{ gameId: string; cards: Card[] }>
- *
- * @example
- * const { gameId, cards } = await startGame()
+ * @param difficulty - 게임 난이도 (기본: 'normal')
+ * @returns { gameId, difficulty, gridCols, cards }
  */
-export async function startGame(): Promise<{ gameId: string; cards: Card[] }> {
+export async function startGame(difficulty: Difficulty = 'normal'): Promise<{
+  gameId: string
+  difficulty: Difficulty
+  gridCols: number
+  cards: Card[]
+}> {
   try {
-    const response = await axios.get<GameStartResponse>('/api/game/start')
+    const response = await axios.get<GameStartResponse>(
+      `/api/game/start?difficulty=${difficulty}`
+    )
 
-    // 백엔드 응답을 프론트엔드 Card 타입으로 변환
-    // isFlipped와 isSolved 필드를 추가 (초기값: false)
     const cards: Card[] = response.data.cards.map((card) => ({
       ...card,
       isFlipped: false,
@@ -71,16 +98,18 @@ export async function startGame(): Promise<{ gameId: string; cards: Card[] }> {
 
     return {
       gameId: response.data.gameId,
+      difficulty: response.data.difficulty,
+      gridCols: response.data.gridCols,
       cards,
     }
   } catch (error) {
-    // 백엔드를 사용할 수 없는 환경(GitHub Pages, 오프라인 등)에서 클라이언트 사이드로 게임 생성
+    // 백엔드 없는 환경에서 클라이언트 폴백
     if (
       axios.isAxiosError(error) &&
       (error.response?.status === 404 || !error.response)
     ) {
       console.warn('[API Fallback] Backend unavailable, generating game locally')
-      return generateLocalGame()
+      return generateLocalGame(difficulty)
     }
 
     console.error('[API Error] Failed to start game:', error)

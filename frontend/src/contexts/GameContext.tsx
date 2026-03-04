@@ -24,43 +24,62 @@ export const initialState: GameState = {
   isLoading: false,
   error: null,
   isMatching: false,
+  // 신규 필드
+  score: 0,
+  combo: 0,
+  maxCombo: 0,
+  elapsedTime: 0,
+  difficulty: 'normal',
+  gridCols: 4,
+  hintUsed: false,
+  isHinting: false,
 }
 
-/**
- * Game Context
- * 전역 게임 상태를 관리하는 Context
- */
 const GameContext = createContext<GameContextType | undefined>(undefined)
+
+/**
+ * 매칭 성공 점수 계산
+ * 기본 100점 + 콤보 보너스 (콤보 × 50)
+ */
+function calcScore(currentScore: number, combo: number): number {
+  return currentScore + 100 + combo * 50
+}
 
 /**
  * Game Reducer
  * 게임 상태 변경 로직을 처리하는 Reducer 함수
- *
- * @param state - 현재 게임 상태
- * @param action - 실행할 액션
- * @returns 새로운 게임 상태
- *
- * @example
- * dispatch({ type: 'INIT_GAME', payload: { gameId: '123', cards: [...] } })
  */
 export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case 'INIT_GAME':
-      // 게임 초기화: 서버에서 받은 카드 배열과 gameId 설정
       return {
         ...state,
         gameId: action.payload.gameId,
         cards: action.payload.cards,
+        difficulty: action.payload.difficulty,
+        gridCols: action.payload.gridCols,
         flippedCards: [],
         life: 3,
         status: 'PLAYING',
         isLoading: false,
         error: null,
         isMatching: false,
+        score: 0,
+        combo: 0,
+        maxCombo: 0,
+        elapsedTime: 0,
+        hintUsed: false,
+        isHinting: false,
+      }
+
+    case 'SET_DIFFICULTY':
+      return {
+        ...state,
+        difficulty: action.payload.difficulty,
+        gridCols: action.payload.gridCols,
       }
 
     case 'FLIP_CARD':
-      // 카드 뒤집기: 해당 카드의 isFlipped를 true로 변경
       return {
         ...state,
         cards: state.cards.map((card) =>
@@ -72,79 +91,78 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         ],
       }
 
-    case 'MATCH_SUCCESS':
-      // 매칭 성공: 두 카드의 isSolved를 true로 변경하고 flippedCards 비우기
+    case 'MATCH_SUCCESS': {
+      // 콤보 계산 (이전 콤보 기준으로 점수 차등)
+      const newCombo = state.combo + 1
+      const newScore = calcScore(state.score, state.combo)
+      const newMaxCombo = Math.max(state.maxCombo, newCombo)
       return {
         ...state,
         cards: state.cards.map((card) =>
           action.payload.cardIds.includes(card.id)
-            ? { ...card, isSolved: true }
+            ? { ...card, isSolved: true, isShaking: false }
             : card
         ),
         flippedCards: [],
+        score: newScore,
+        combo: newCombo,
+        maxCombo: newMaxCombo,
       }
+    }
 
     case 'MATCH_FAIL':
-      // 매칭 실패: 두 카드의 isFlipped를 false로 변경하고 life 차감
+      // 실패한 카드에 shake 표시, 콤보 리셋
       return {
         ...state,
         cards: state.cards.map((card) =>
           action.payload.cardIds.includes(card.id)
-            ? { ...card, isFlipped: false }
+            ? { ...card, isFlipped: false, isShaking: true }
             : card
         ),
         flippedCards: [],
         life: state.life - 1,
+        combo: 0,
       }
 
     case 'GAME_OVER':
-      // 게임 오버: status를 'GAME_OVER'로 변경
-      return {
-        ...state,
-        status: 'GAME_OVER',
-      }
+      return { ...state, status: 'GAME_OVER' }
 
     case 'VICTORY':
-      // 승리: status를 'VICTORY'로 변경
-      return {
-        ...state,
-        status: 'VICTORY',
-      }
+      return { ...state, status: 'VICTORY' }
 
     case 'RESET_GAME':
-      // 게임 재시작: 초기 상태로 되돌리기
       return initialState
 
     case 'SET_LOADING':
-      // 로딩 상태 변경
-      return {
-        ...state,
-        isLoading: action.payload,
-      }
+      return { ...state, isLoading: action.payload }
 
     case 'SET_ERROR':
-      // 에러 메시지 설정
-      return {
-        ...state,
-        error: action.payload,
-        isLoading: false,
-      }
+      return { ...state, error: action.payload, isLoading: false }
 
     case 'SET_MATCHING':
-      // 매칭 판별 중 여부 설정
+      return { ...state, isMatching: action.payload }
+
+    case 'TICK_TIMER':
+      // PLAYING 상태에서만 타이머 증가
+      if (state.status !== 'PLAYING') return state
+      return { ...state, elapsedTime: state.elapsedTime + 1 }
+
+    case 'USE_HINT':
+      // 힌트: life 1 감소, hintUsed = true
       return {
         ...state,
-        isMatching: action.payload,
+        hintUsed: true,
+        life: state.life - 1,
       }
+
+    case 'SET_HINTING':
+      return { ...state, isHinting: action.payload }
 
     default:
       return state
   }
 }
 
-/**
- * GameProvider Props
- */
 interface GameProviderProps {
   children: ReactNode
 }
@@ -152,14 +170,6 @@ interface GameProviderProps {
 /**
  * GameProvider Component
  * 전역 게임 상태를 제공하는 Provider 컴포넌트
- *
- * @param children - 자식 컴포넌트들
- * @returns GameContext.Provider로 래핑된 children
- *
- * @example
- * <GameProvider>
- *   <App />
- * </GameProvider>
  */
 export function GameProvider({ children }: GameProviderProps) {
   const [state, dispatch] = useReducer(gameReducer, initialState)
@@ -174,13 +184,6 @@ export function GameProvider({ children }: GameProviderProps) {
 /**
  * useGameContext Hook
  * GameContext를 사용하기 위한 커스텀 훅
- *
- * @returns GameContext의 state와 dispatch
- * @throws Context가 Provider 외부에서 사용될 경우 에러 발생
- *
- * @example
- * const { state, dispatch } = useGameContext()
- * dispatch({ type: 'FLIP_CARD', payload: { cardId: '123' } })
  */
 export function useGameContext() {
   const context = useContext(GameContext)
