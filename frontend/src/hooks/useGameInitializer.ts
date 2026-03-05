@@ -39,12 +39,12 @@ export function useGameInitializer(): void {
         console.log('[Assets Preloaded] Fruit assets loaded successfully')
 
         // 2. API 호출
-        const { gameId, cards } = await startGame()
+        const { gameId, cards, difficulty, gridCols } = await startGame()
 
         // 3. 게임 초기화 액션 디스패치
         dispatch({
           type: 'INIT_GAME',
-          payload: { gameId, cards },
+          payload: { gameId, cards, difficulty, gridCols },
         })
 
         console.log(`[Game Initialized] gameId: ${gameId}, cards: ${cards.length}`)
