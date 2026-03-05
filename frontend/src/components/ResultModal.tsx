@@ -1,3 +1,4 @@
+import type { FC } from 'react'
 import styled, { keyframes } from 'styled-components'
 
 /**
@@ -170,7 +171,7 @@ function formatTime(seconds: number): string {
  * PRD: 성공 메시지, 실패 메시지, 재시작 버튼
  * 추가: 점수, 최고기록, 최대콤보, 소요시간 통계 표시
  */
-export const ResultModal: React.FC<ResultModalProps> = ({
+export const ResultModal: FC<ResultModalProps> = ({
   isOpen,
   result,
   onRestart,

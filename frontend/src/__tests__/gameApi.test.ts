@@ -26,14 +26,20 @@ describe('startGame — 백엔드 정상 응답', () => {
       imgUrl: '/images/apple.png',
     }))
     mockedAxios.get = vi.fn().mockResolvedValue({
-      data: { gameId: 'server-game-id', cards: serverCards },
+      data: {
+        gameId: 'server-game-id',
+        difficulty: 'normal',
+        gridCols: 4,
+        cards: serverCards,
+      },
     })
 
-    const { gameId, cards } = await startGame()
+    const { gameId, cards, difficulty, gridCols } = await startGame('normal')
 
     expect(gameId).toBe('server-game-id')
+    expect(difficulty).toBe('normal')
+    expect(gridCols).toBe(4)
     expect(cards).toHaveLength(16)
-    // isFlipped / isSolved 초기값 추가 여부 확인
     expect(cards[0].isFlipped).toBe(false)
     expect(cards[0].isSolved).toBe(false)
   })
@@ -54,7 +60,7 @@ describe('startGame — 백엔드 404 (GitHub Pages 환경)', () => {
     mockedAxios.get = vi.fn().mockRejectedValue(axiosError)
     mockIsAxiosError(true)
 
-    const { gameId, cards } = await startGame()
+    const { gameId, cards } = await startGame('normal')
 
     expect(gameId).toBeTruthy()
     expect(cards).toHaveLength(16)
@@ -71,14 +77,14 @@ describe('startGame — 백엔드 404 (GitHub Pages 환경)', () => {
     mockedAxios.get = vi.fn().mockRejectedValue(axiosError)
     mockIsAxiosError(true)
 
-    const { cards } = await startGame()
+    const { cards } = await startGame('normal')
 
     const typeCounts: Record<string, number> = {}
     cards.forEach((card) => {
       typeCounts[card.type] = (typeCounts[card.type] ?? 0) + 1
     })
 
-    // 8가지 과일 타입이 존재해야 한다
+    // normal: 8가지 과일 타입이 존재해야 한다
     expect(Object.keys(typeCounts)).toHaveLength(8)
     // 각 타입은 정확히 2장이어야 한다
     Object.values(typeCounts).forEach((count) => {
@@ -102,7 +108,7 @@ describe('startGame — 네트워크 오류 (서버 응답 없음)', () => {
     mockedAxios.get = vi.fn().mockRejectedValue(networkError)
     mockIsAxiosError(true)
 
-    const { gameId, cards } = await startGame()
+    const { gameId, cards } = await startGame('normal')
 
     expect(gameId).toBeTruthy()
     expect(cards).toHaveLength(16)

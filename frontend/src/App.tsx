@@ -10,7 +10,6 @@ import { DifficultyScreen } from './components/DifficultyScreen'
 import { ComboPopup } from './components/ComboPopup'
 import { GameProvider } from './contexts/GameContext'
 import { useGameContext } from './contexts/GameContext'
-// useGameInitializer는 DifficultyGate에서 직접 startGame()을 호출하므로 사용하지 않음
 import { useTimer } from './hooks/useTimer'
 import { useBestScore } from './hooks/useBestScore'
 import { useSound } from './hooks/useSound'

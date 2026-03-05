@@ -1,3 +1,4 @@
+import type { FC } from 'react'
 import styled, { keyframes } from 'styled-components'
 import type { Card as CardType } from '../types/Card'
 import { getFruitEmoji } from '../utils/fruitEmojis'
@@ -124,7 +125,7 @@ const CardEmoji = styled.div`
  * 게임 카드를 표시하는 컴포넌트
  * PRD AC: 클릭 시 3D Flip 애니메이션, 매칭 실패 시 Shake 애니메이션
  */
-export const Card: React.FC<CardProps> = ({ cardData, onClick, forceFlip = false }) => {
+export const Card: FC<CardProps> = ({ cardData, onClick, forceFlip = false }) => {
   const { type, isFlipped, isSolved, isShaking } = cardData
   const showFront = isFlipped || isSolved || forceFlip
 

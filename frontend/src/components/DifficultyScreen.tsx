@@ -1,9 +1,10 @@
+import type { FC } from 'react'
 import styled, { keyframes } from 'styled-components'
 import type { Difficulty } from '../types/Card'
 import { useBestScore } from '../hooks/useBestScore'
 
 interface DifficultyScreenProps {
-    onSelectDifficulty: (difficulty: Difficulty) => void
+  onSelectDifficulty: (difficulty: Difficulty) => void
 }
 
 // ─── 애니메이션 ────────────────────────────────────────────────────────────────
@@ -113,78 +114,78 @@ const BestScoreRow = styled.span`
 // ─── Component ─────────────────────────────────────────────────────────────────
 
 const DIFFICULTIES: {
-    id: Difficulty
-    label: string
-    emoji: string
-    detail: string
-    color: string
-    hoverColor: string
+  id: Difficulty
+  label: string
+  emoji: string
+  detail: string
+  color: string
+  hoverColor: string
 }[] = [
-        {
-            id: 'easy',
-            label: 'EASY',
-            emoji: '🌱',
-            detail: '3×4 그리드\n12장 카드',
-            color: '#48bb78',
-            hoverColor: '#38a169',
-        },
-        {
-            id: 'normal',
-            label: 'NORMAL',
-            emoji: '⚡',
-            detail: '4×4 그리드\n16장 카드',
-            color: '#4299e1',
-            hoverColor: '#3182ce',
-        },
-        {
-            id: 'hard',
-            label: 'HARD',
-            emoji: '🔥',
-            detail: '4×5 그리드\n20장 카드',
-            color: '#e53e3e',
-            hoverColor: '#c53030',
-        },
-    ]
+    {
+      id: 'easy',
+      label: 'EASY',
+      emoji: '🌱',
+      detail: '3×4 그리드\n12장 카드',
+      color: '#48bb78',
+      hoverColor: '#38a169',
+    },
+    {
+      id: 'normal',
+      label: 'NORMAL',
+      emoji: '⚡',
+      detail: '4×4 그리드\n16장 카드',
+      color: '#4299e1',
+      hoverColor: '#3182ce',
+    },
+    {
+      id: 'hard',
+      label: 'HARD',
+      emoji: '🔥',
+      detail: '4×5 그리드\n20장 카드',
+      color: '#e53e3e',
+      hoverColor: '#c53030',
+    },
+  ]
 
 /**
  * DifficultyScreen Component
  * 게임 시작 전 난이도를 선택하는 화면입니다.
  */
-export const DifficultyScreen: React.FC<DifficultyScreenProps> = ({
-    onSelectDifficulty,
+export const DifficultyScreen: FC<DifficultyScreenProps> = ({
+  onSelectDifficulty,
 }) => {
-    const { getBestScore } = useBestScore()
+  const { getBestScore } = useBestScore()
 
-    return (
-        <Container>
-            <Title>🃏 카드 짝 맞추기</Title>
-            <Subtitle>난이도를 선택하세요</Subtitle>
-            <DifficultyGrid>
-                {DIFFICULTIES.map(({ id, label, emoji, detail, color, hoverColor }) => {
-                    const best = getBestScore(id)
-                    return (
-                        <DifficultyCard
-                            key={id}
-                            $color={color}
-                            $hoverColor={hoverColor}
-                            onClick={() => onSelectDifficulty(id)}
-                            data-testid={`difficulty-${id}`}
-                        >
-                            <DifficultyEmoji>{emoji}</DifficultyEmoji>
-                            <DifficultyLabel>{label}</DifficultyLabel>
-                            <DifficultyDetail>{detail.replace('\\n', '\n')}</DifficultyDetail>
-                            <BestScoreRow>
-                                {best > 0 ? `🏆 최고: ${best.toLocaleString()}점` : '기록 없음'}
-                            </BestScoreRow>
-                        </DifficultyCard>
-                    )
-                })}
-            </DifficultyGrid>
-            <Subtitle style={{ fontSize: '0.9rem', opacity: 0.7 }}>
-                남은 기회: 3회 · 힌트 1회 사용 가능
-            </Subtitle>
-        </Container>
-    )
+  return (
+    <Container>
+      <Title>🃏 카드 짝 맞추기</Title>
+      <Subtitle>난이도를 선택하세요</Subtitle>
+      <DifficultyGrid>
+        {DIFFICULTIES.map(({ id, label, emoji, detail, color, hoverColor }) => {
+          const best = getBestScore(id)
+          return (
+            <DifficultyCard
+              key={id}
+              $color={color}
+              $hoverColor={hoverColor}
+              onClick={() => onSelectDifficulty(id)}
+              data-testid={`difficulty-${id}`}
+            >
+              <DifficultyEmoji>{emoji}</DifficultyEmoji>
+              <DifficultyLabel>{label}</DifficultyLabel>
+              <DifficultyDetail>{detail.replace('\\n', '\n')}</DifficultyDetail>
+              <BestScoreRow>
+                {best > 0 ? `🏆 최고: ${best.toLocaleString()}점` : '기록 없음'}
+              </BestScoreRow>
+            </DifficultyCard>
+          )
+        })}
+      </DifficultyGrid>
+      <Subtitle style={{ fontSize: '0.9rem', opacity: 0.7 }}>
+        남은 기회: 3회 · 힌트 1회 사용 가능
+      </Subtitle>
+    </Container>
+  )
 }
 
 export default DifficultyScreen

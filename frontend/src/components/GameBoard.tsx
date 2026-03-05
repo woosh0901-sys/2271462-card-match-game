@@ -1,3 +1,4 @@
+import type { FC } from 'react'
 import styled from 'styled-components'
 import type { Card as CardType } from '../types/Card'
 import { Card } from './Card'
@@ -55,7 +56,7 @@ const CardWrapper = styled.div`
  * - Normal: 4×4 (16장)
  * - Hard: 4×5 (20장, 5열 → grid-auto-rows로 행 자동 조절)
  */
-export const GameBoard: React.FC<GameBoardProps> = ({
+export const GameBoard: FC<GameBoardProps> = ({
   cards,
   onCardClick,
   isMatching,

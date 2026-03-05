@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
+import type { FC } from 'react'
 import styled, { keyframes } from 'styled-components'
 
 interface ComboPopupProps {
-    combo: number
+  combo: number
 }
 
 // ─── 애니메이션 ────────────────────────────────────────────────────────────────
@@ -60,44 +61,44 @@ const SubText = styled.div`
  * 콤보 2 이상 달성 시 화면 중앙에 팝업으로 표시됩니다.
  * 0.8초 후 자동으로 사라집니다.
  */
-export const ComboPopup: React.FC<ComboPopupProps> = ({ combo }) => {
-    const [visible, setVisible] = useState(false)
-    const [fading, setFading] = useState(false)
-    const [displayCombo, setDisplayCombo] = useState(combo)
+export const ComboPopup: FC<ComboPopupProps> = ({ combo }) => {
+  const [visible, setVisible] = useState(false)
+  const [fading, setFading] = useState(false)
+  const [displayCombo, setDisplayCombo] = useState(combo)
 
-    useEffect(() => {
-        // 콤보 2 이상일 때만 팝업 표시
-        if (combo < 2) {
-            setVisible(false)
-            return
-        }
+  useEffect(() => {
+    // 콤보 2 이상일 때만 팝업 표시
+    if (combo < 2) {
+      setVisible(false)
+      return
+    }
 
-        setDisplayCombo(combo)
-        setFading(false)
-        setVisible(true)
+    setDisplayCombo(combo)
+    setFading(false)
+    setVisible(true)
 
-        // 0.8초 후 페이드아웃
-        const fadeTimer = setTimeout(() => setFading(true), 800)
-        const hideTimer = setTimeout(() => setVisible(false), 1200)
+    // 0.8초 후 페이드아웃
+    const fadeTimer = setTimeout(() => setFading(true), 800)
+    const hideTimer = setTimeout(() => setVisible(false), 1200)
 
-        return () => {
-            clearTimeout(fadeTimer)
-            clearTimeout(hideTimer)
-        }
-    }, [combo])
+    return () => {
+      clearTimeout(fadeTimer)
+      clearTimeout(hideTimer)
+    }
+  }, [combo])
 
-    if (!visible) return null
+  if (!visible) return null
 
-    const emoji = displayCombo >= 5 ? '🔥🔥' : displayCombo >= 3 ? '🔥' : '⭐'
+  const emoji = displayCombo >= 5 ? '🔥🔥' : displayCombo >= 3 ? '🔥' : '⭐'
 
-    return (
-        <PopupWrapper $fading={fading}>
-            <ComboText>
-                {emoji} {displayCombo} COMBO!
-            </ComboText>
-            <SubText>+{100 + (displayCombo - 1) * 50}점</SubText>
-        </PopupWrapper>
-    )
+  return (
+    <PopupWrapper $fading={fading}>
+      <ComboText>
+        {emoji} {displayCombo} COMBO!
+      </ComboText>
+      <SubText>+{100 + (displayCombo - 1) * 50}점</SubText>
+    </PopupWrapper>
+  )
 }
 
 export default ComboPopup

@@ -1,3 +1,4 @@
+import type { FC } from 'react'
 import styled from 'styled-components'
 
 /**
@@ -93,7 +94,7 @@ function formatTime(seconds: number): string {
  * 타이머, 점수, 콤보, 생명, 힌트 버튼을 표시합니다.
  * PRD 6 UI/UX: 상단 정보 영역
  */
-export const Header: React.FC<HeaderProps> = ({
+export const Header: FC<HeaderProps> = ({
   life,
   score,
   combo,
