@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FC } from 'react'
 import styled, { keyframes } from 'styled-components'
 
@@ -65,25 +65,32 @@ export const ComboPopup: FC<ComboPopupProps> = ({ combo }) => {
   const [visible, setVisible] = useState(false)
   const [fading, setFading] = useState(false)
   const [displayCombo, setDisplayCombo] = useState(combo)
+  const prevComboRef = useRef(combo)
 
   useEffect(() => {
-    // 콤보 2 이상일 때만 팝업 표시
-    if (combo < 2) {
-      setVisible(false)
-      return
+    const prev = prevComboRef.current
+    prevComboRef.current = combo
+
+    if (combo >= 2 && combo > prev) {
+      // setState는 타이머 콜백 안에서만 호출
+      const showTimer = setTimeout(() => {
+        setDisplayCombo(combo)
+        setFading(false)
+        setVisible(true)
+      }, 0)
+      const fadeTimer = setTimeout(() => setFading(true), 800)
+      const hideTimer = setTimeout(() => setVisible(false), 1200)
+
+      return () => {
+        clearTimeout(showTimer)
+        clearTimeout(fadeTimer)
+        clearTimeout(hideTimer)
+      }
     }
 
-    setDisplayCombo(combo)
-    setFading(false)
-    setVisible(true)
-
-    // 0.8초 후 페이드아웃
-    const fadeTimer = setTimeout(() => setFading(true), 800)
-    const hideTimer = setTimeout(() => setVisible(false), 1200)
-
-    return () => {
-      clearTimeout(fadeTimer)
-      clearTimeout(hideTimer)
+    if (combo < 2) {
+      const resetTimer = setTimeout(() => setVisible(false), 0)
+      return () => clearTimeout(resetTimer)
     }
   }, [combo])
 

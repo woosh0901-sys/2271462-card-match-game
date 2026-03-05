@@ -1,5 +1,6 @@
+/* eslint-disable react-refresh/only-export-components -- Context 파일은 컴포넌트/훅/상태를 함께 export하는 표준 패턴 */
 import { createContext, useContext, useReducer } from 'react'
-import type { ReactNode } from 'react'
+import type { Dispatch, ReactNode } from 'react'
 import type { GameState, GameAction } from '../types/GameState'
 
 /**
@@ -8,7 +9,7 @@ import type { GameState, GameAction } from '../types/GameState'
  */
 interface GameContextType {
   state: GameState
-  dispatch: React.Dispatch<GameAction>
+  dispatch: Dispatch<GameAction>
 }
 
 /**
