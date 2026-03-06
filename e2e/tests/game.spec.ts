@@ -22,9 +22,9 @@ test.describe('카드 매칭 게임', () => {
    */
   test('게임 로딩 — 카드 16장이 렌더링된다', async ({ page }) => {
     await page.goto('/')
-
+    await page.getByTestId('difficulty-normal').click()
     await expect(page.getByTestId('game-board')).toBeVisible()
-    await expect(page.getByTestId('life-display')).toHaveText('남은 기회: 3/3')
+    await expect(page.getByTestId('life-display')).toHaveText('❤️ ❤️ ❤️')
 
     const cards = page.locator('[data-testid^="card-"]')
     await expect(cards).toHaveCount(16)
@@ -39,6 +39,7 @@ test.describe('카드 매칭 게임', () => {
    */
   test('카드 뒤집기 — 클릭하면 data-is-flipped가 true가 된다', async ({ page }) => {
     await page.goto('/')
+    await page.getByTestId('difficulty-normal').click()
     await expect(page.getByTestId('game-board')).toBeVisible()
 
     const firstCard = page.locator('[data-testid^="card-"]').first()
@@ -55,6 +56,7 @@ test.describe('카드 매칭 게임', () => {
    */
   test('매칭 실패 — 다른 타입 카드 클릭 시 생명이 감소한다', async ({ page }) => {
     await page.goto('/')
+    await page.getByTestId('difficulty-normal').click()
     await expect(page.getByTestId('game-board')).toBeVisible()
 
     const firstCard = page.locator('[data-testid^="card-"]').first()
@@ -72,7 +74,7 @@ test.describe('카드 매칭 게임', () => {
     await page.waitForTimeout(2000)
 
     await expect(page.locator('[data-is-flipped="true"]')).toHaveCount(0)
-    await expect(page.getByTestId('life-display')).toHaveText('남은 기회: 2/3')
+    await expect(page.getByTestId('life-display')).toHaveText('❤️ ❤️ 🖤')
   })
 
   /**
@@ -82,6 +84,7 @@ test.describe('카드 매칭 게임', () => {
    */
   test('게임 재시작 — 재시작 버튼 클릭 시 상태가 초기화된다', async ({ page }) => {
     await page.goto('/')
+    await page.getByTestId('difficulty-normal').click()
     await expect(page.getByTestId('game-board')).toBeVisible()
 
     // 3회 매칭 실패로 게임 오버 유도
@@ -113,7 +116,7 @@ test.describe('카드 매칭 게임', () => {
     await page.getByTestId('restart-button').click()
 
     // 상태 초기화 확인
-    await expect(page.getByTestId('life-display')).toHaveText('남은 기회: 3/3', { timeout: 10000 })
+    await expect(page.getByTestId('life-display')).toHaveText('❤️ ❤️ ❤️', { timeout: 10000 })
     await expect(page.locator('[data-testid^="card-"]')).toHaveCount(16)
   })
 })
