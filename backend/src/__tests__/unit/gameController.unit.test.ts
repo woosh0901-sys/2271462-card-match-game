@@ -23,7 +23,7 @@ describe('gameController.startGame — Unit Tests', () => {
     jest.clearAllMocks();
 
     // req / res mock 초기화
-    mockReq = {} as Request;
+    mockReq = { query: {} } as unknown as Request;
     mockRes = {
       status: jest.fn().mockReturnThis(),
       json: jest.fn().mockReturnThis(),

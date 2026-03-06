@@ -8,6 +8,11 @@ describe('generateCards Function', () => {
       expect(cards).toHaveLength(16);
     });
 
+    test('should use normal difficulty by default', () => {
+      const cards = generateCards();
+      expect(cards).toHaveLength(16);
+    });
+
     test('should have 8 different fruit types', () => {
       const cards = generateCards('normal');
       const types = new Set(cards.map((card) => card.type));

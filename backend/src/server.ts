@@ -23,6 +23,7 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 // Start Server (only if not in test environment)
+/* istanbul ignore next */
 if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
     console.log(`🚀 Server is running on http://localhost:${PORT}`);

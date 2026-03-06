@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<coverage generated="1772758081820" clover="3.2.0">
+  <project timestamp="1772758081820" name="All files">
+    <metrics statements="71" coveredstatements="71" conditionals="13" coveredconditionals="12" methods="7" coveredmethods="7" elements="91" coveredelements="90" complexity="0" loc="71" ncloc="71" packages="6" files="7" classes="7"/>
+    <package name="src">
+      <metrics statements="14" coveredstatements="14" conditionals="0" coveredconditionals="0" methods="1" coveredmethods="1"/>
+      <file name="server.ts" path="C:\Users\woosh\OneDrive\바탕 화면\수업자료\3-1\소공\project\backend\src\server.ts">
+        <metrics statements="14" coveredstatements="14" conditionals="0" coveredconditionals="0" methods="1" coveredmethods="1"/>
+        <line num="1" count="1" type="stmt"/>
+        <line num="2" count="1" type="stmt"/>
+        <line num="3" count="1" type="stmt"/>
+        <line num="4" count="1" type="stmt"/>
+        <line num="6" count="1" type="stmt"/>
+        <line num="7" count="1" type="stmt"/>
+        <line num="10" count="1" type="stmt"/>
+        <line num="11" count="1" type="stmt"/>
+        <line num="14" count="1" type="stmt"/>
+        <line num="15" count="1" type="stmt"/>
+        <line num="19" count="1" type="stmt"/>
+        <line num="22" count="1" type="stmt"/>
+        <line num="23" count="1" type="stmt"/>
+        <line num="34" count="1" type="stmt"/>
+      </file>
+    </package>
+    <package name="src.controllers">
+      <metrics statements="18" coveredstatements="18" conditionals="6" coveredconditionals="5" methods="1" coveredmethods="1"/>
+      <file name="gameController.ts" path="C:\Users\woosh\OneDrive\바탕 화면\수업자료\3-1\소공\project\backend\src\controllers\gameController.ts">
+        <metrics statements="18" coveredstatements="18" conditionals="6" coveredconditionals="5" methods="1" coveredmethods="1"/>
+        <line num="2" count="2" type="stmt"/>
+        <line num="3" count="2" type="stmt"/>
+        <line num="4" count="2" type="stmt"/>
+        <line num="12" count="2" type="stmt"/>
+        <line num="13" count="19" type="stmt"/>
+        <line num="15" count="19" type="stmt"/>
+        <line num="17" count="19" type="stmt"/>
+        <line num="19" count="19" type="cond" truecount="3" falsecount="1"/>
+        <line num="23" count="19" type="stmt"/>
+        <line num="26" count="19" type="stmt"/>
+        <line num="29" count="19" type="stmt"/>
+        <line num="32" count="17" type="stmt"/>
+        <line num="33" count="17" type="stmt"/>
+        <line num="35" count="17" type="cond" truecount="2" falsecount="0"/>
+        <line num="36" count="1" type="stmt"/>
+        <line num="39" count="17" type="stmt"/>
+        <line num="46" count="2" type="stmt"/>
+        <line num="47" count="2" type="stmt"/>
+      </file>
+    </package>
+    <package name="src.middlewares">
+      <metrics statements="15" coveredstatements="15" conditionals="6" coveredconditionals="6" methods="2" coveredmethods="2"/>
+      <file name="errorHandler.ts" path="C:\Users\woosh\OneDrive\바탕 화면\수업자료\3-1\소공\project\backend\src\middlewares\errorHandler.ts">
+        <metrics statements="15" coveredstatements="15" conditionals="6" coveredconditionals="6" methods="2" coveredmethods="2"/>
+        <line num="7" count="2" type="stmt"/>
+        <line num="8" count="4" type="stmt"/>
+        <line num="9" count="4" type="stmt"/>
+        <line num="10" count="4" type="stmt"/>
+        <line num="22" count="2" type="stmt"/>
+        <line num="29" count="12" type="cond" truecount="2" falsecount="0"/>
+        <line num="32" count="12" type="stmt"/>
+        <line num="33" count="12" type="stmt"/>
+        <line num="34" count="12" type="stmt"/>
+        <line num="35" count="12" type="stmt"/>
+        <line num="36" count="12" type="stmt"/>
+        <line num="37" count="12" type="stmt"/>
+        <line num="38" count="12" type="stmt"/>
+        <line num="39" count="12" type="stmt"/>
+        <line num="42" count="12" type="stmt"/>
+      </file>
+    </package>
+    <package name="src.routes">
+      <metrics statements="5" coveredstatements="5" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
+      <file name="game.ts" path="C:\Users\woosh\OneDrive\바탕 화면\수업자료\3-1\소공\project\backend\src\routes\game.ts">
+        <metrics statements="5" coveredstatements="5" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
+        <line num="1" count="1" type="stmt"/>
+        <line num="2" count="1" type="stmt"/>
+        <line num="4" count="1" type="stmt"/>
+        <line num="10" count="1" type="stmt"/>
+        <line num="12" count="1" type="stmt"/>
+      </file>
+    </package>
+    <package name="src.types">
+      <metrics statements="2" coveredstatements="2" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
+      <file name="Card.ts" path="C:\Users\woosh\OneDrive\바탕 화면\수업자료\3-1\소공\project\backend\src\types\Card.ts">
+        <metrics statements="2" coveredstatements="2" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
+        <line num="19" count="4" type="stmt"/>
+        <line num="35" count="4" type="stmt"/>
+      </file>
+    </package>
+    <package name="src.utils">
+      <metrics statements="17" coveredstatements="17" conditionals="1" coveredconditionals="1" methods="3" coveredmethods="3"/>
+      <file name="generateCards.ts" path="C:\Users\woosh\OneDrive\바탕 화면\수업자료\3-1\소공\project\backend\src\utils\generateCards.ts">
+        <metrics statements="11" coveredstatements="11" conditionals="1" coveredconditionals="1" methods="2" coveredmethods="2"/>
+        <line num="1" count="3" type="stmt"/>
+        <line num="2" count="3" type="stmt"/>
+        <line num="3" count="3" type="stmt"/>
+        <line num="17" count="3" type="cond" truecount="1" falsecount="0"/>
+        <line num="18" count="25" type="stmt"/>
+        <line num="19" count="25" type="stmt"/>
+        <line num="20" count="25" type="stmt"/>
+        <line num="23" count="25" type="stmt"/>
+        <line num="24" count="200" type="stmt"/>
+        <line num="25" count="400" type="stmt"/>
+        <line num="33" count="25" type="stmt"/>
+      </file>
+      <file name="shuffle.ts" path="C:\Users\woosh\OneDrive\바탕 화면\수업자료\3-1\소공\project\backend\src\utils\shuffle.ts">
+        <metrics statements="6" coveredstatements="6" conditionals="0" coveredconditionals="0" methods="1" coveredmethods="1"/>
+        <line num="9" count="4" type="stmt"/>
+        <line num="10" count="40" type="stmt"/>
+        <line num="12" count="40" type="stmt"/>
+        <line num="14" count="486" type="stmt"/>
+        <line num="17" count="486" type="stmt"/>
+        <line num="20" count="40" type="stmt"/>
+      </file>
+    </package>
+  </project>
+</coverage>
