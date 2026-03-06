@@ -21,7 +21,7 @@ import { defineConfig, devices } from '@playwright/test'
 
 // PLAYWRIGHT_BASE_URL 이 설정된 경우 스테이징 환경으로 판단한다
 const isStaging = !!process.env.PLAYWRIGHT_BASE_URL
-const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:4173'
+const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5173'
 
 export default defineConfig({
   testDir: './tests',
@@ -49,21 +49,28 @@ export default defineConfig({
   ...(isStaging
     ? {}
     : {
-        webServer: [
-          {
-            command: 'npm run dev',
-            cwd: '../backend',
-            port: 3001,
-            reuseExistingServer: !process.env.CI,
-            timeout: 30_000,
-          },
-          {
-            command: 'npm run build && npm run preview',
-            cwd: '../frontend',
-            port: 4173,
-            reuseExistingServer: !process.env.CI,
-            timeout: 60_000,
-          },
-        ],
-      }),
+      webServer: [
+        {
+          command: 'npm run dev',
+          cwd: '../backend',
+          port: 3001,
+          reuseExistingServer: !process.env.CI,
+          timeout: 30_000,
+        },
+        {
+          command: 'npm run dev',
+          cwd: '../backend',
+          port: 3001,
+          reuseExistingServer: !process.env.CI,
+          timeout: 30_000,
+        },
+        {
+          command: 'npm run dev',
+          cwd: '../frontend',
+          port: 5173,
+          reuseExistingServer: !process.env.CI,
+          timeout: 60_000,
+        },
+      ],
+    }),
 })
