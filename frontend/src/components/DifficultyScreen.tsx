@@ -1,7 +1,10 @@
 import type { FC } from 'react'
+import { useState } from 'react'
 import styled, { keyframes } from 'styled-components'
 import type { Difficulty } from '../types/Card'
 import { useBestScore } from '../hooks/useBestScore'
+import { ThemeSettingsModal } from './ThemeSettingsModal'
+import { StatisticsModal } from './StatisticsModal'
 
 interface DifficultyScreenProps {
   onSelectDifficulty: (difficulty: Difficulty) => void
@@ -111,6 +114,32 @@ const BestScoreRow = styled.span`
   margin-top: 4px;
 `
 
+const IconButton = styled.button`
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: white;
+  border-radius: 20px;
+  padding: 10px 20px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px);
+  }
+`
+
+const FixedBottomRow = styled.div`
+  display: flex;
+  gap: 16px;
+  margin-top: 24px;
+`
+
 // ─── Component ─────────────────────────────────────────────────────────────────
 
 const DIFFICULTIES: {
@@ -155,6 +184,8 @@ export const DifficultyScreen: FC<DifficultyScreenProps> = ({
   onSelectDifficulty,
 }) => {
   const { getBestScore } = useBestScore()
+  const [isThemeModalOpen, setIsThemeModalOpen] = useState(false)
+  const [isStatsModalOpen, setIsStatsModalOpen] = useState(false)
 
   return (
     <Container>
@@ -184,6 +215,25 @@ export const DifficultyScreen: FC<DifficultyScreenProps> = ({
       <Subtitle style={{ fontSize: '0.9rem', opacity: 0.7 }}>
         남은 기회: 3회 · 힌트 1회 사용 가능
       </Subtitle>
+
+      <FixedBottomRow>
+        <IconButton onClick={() => setIsThemeModalOpen(true)}>
+          🎨 테마 설정
+        </IconButton>
+        <IconButton onClick={() => setIsStatsModalOpen(true)}>
+          📊 통계 보기
+        </IconButton>
+      </FixedBottomRow>
+
+      <ThemeSettingsModal 
+        isOpen={isThemeModalOpen} 
+        onClose={() => setIsThemeModalOpen(false)} 
+      />
+
+      <StatisticsModal
+        isOpen={isStatsModalOpen}
+        onClose={() => setIsStatsModalOpen(false)}
+      />
     </Container>
   )
 }

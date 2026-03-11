@@ -1,5 +1,6 @@
 import type { FC } from 'react'
 import styled, { keyframes } from 'styled-components'
+import type { DifficultyStats } from '../hooks/useStatistics'
 
 /**
  * ResultModal Props Interface
@@ -10,8 +11,8 @@ interface ResultModalProps {
   onRestart: () => void
   /** 최종 점수 */
   score: number
-  /** 최고 기록 (LocalStorage) */
-  bestScore: number
+  /** 로컬에 저장된 이번 판 포함한 통계 객체 */
+  stats: DifficultyStats
   /** 최대 콤보 */
   maxCombo: number
   /** 경과 시간 (초) */
@@ -176,7 +177,7 @@ export const ResultModal: FC<ResultModalProps> = ({
   result,
   onRestart,
   score,
-  bestScore,
+  stats,
   maxCombo,
   elapsedTime,
   isNewBest,
@@ -205,12 +206,20 @@ export const ResultModal: FC<ResultModalProps> = ({
         {/* 게임 통계 */}
         <StatsGrid>
           <StatCard>
-            <StatCardLabel>점수</StatCardLabel>
+            <StatCardLabel>현재 점수</StatCardLabel>
             <StatCardValue>{score.toLocaleString()}</StatCardValue>
           </StatCard>
           <StatCard>
             <StatCardLabel>최고 기록</StatCardLabel>
-            <StatCardValue>{bestScore.toLocaleString()}</StatCardValue>
+            <StatCardValue>{stats.bestScore.toLocaleString()}</StatCardValue>
+          </StatCard>
+          <StatCard>
+            <StatCardLabel>현재 연속 승리</StatCardLabel>
+            <StatCardValue>{stats.currentStreak}연승</StatCardValue>
+          </StatCard>
+          <StatCard>
+            <StatCardLabel>최대 연속 승리</StatCardLabel>
+            <StatCardValue>{stats.maxStreak}연승</StatCardValue>
           </StatCard>
           <StatCard>
             <StatCardLabel>최대 콤보</StatCardLabel>

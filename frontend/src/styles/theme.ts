@@ -6,7 +6,7 @@
  * 테마 변경(다크 모드 등)을 용이하게 하고, 일관된 디자인을 보장합니다.
  */
 
-export const theme = {
+export const baseTheme = {
   /**
    * Color Palette
    * 게임에서 사용하는 색상 팔레트
@@ -131,12 +131,56 @@ export const theme = {
     tablet: '768px',
     desktop: '1024px',
   },
-};
+}
+
+/**
+ * Theme Variants (스킨)
+ */
+export const themes = {
+  default: {
+    ...baseTheme,
+    colors: {
+      ...baseTheme.colors,
+      background: '#f0f2f5',
+      cardBack: '#2c3e50',
+      cardFront: '#ffffff',
+      primary: '#3498db',
+      primaryHover: '#2980b9',
+      textPrimary: '#2c3e50',
+    },
+  },
+  dark: {
+    ...baseTheme,
+    colors: {
+      ...baseTheme.colors,
+      background: '#121212',
+      cardBack: '#333333',
+      cardFront: '#1e1e1e',
+      primary: '#9b59b6', // 퍼플톤
+      primaryHover: '#8e44ad',
+      textPrimary: '#f5f6fa',
+    },
+  },
+  nature: {
+    ...baseTheme,
+    colors: {
+      ...baseTheme.colors,
+      background: '#e8f5e9', // 연한 녹색
+      cardBack: '#2e7d32',   // 진녹색
+      cardFront: '#ffffff',
+      primary: '#4caf50',
+      primaryHover: '#43a047',
+      textPrimary: '#1b5e20',
+    },
+  },
+}
+
+export type ThemeName = keyof typeof themes
 
 /**
  * Theme Type
  * TypeScript 타입 추론을 위한 타입 정의
  */
-export type Theme = typeof theme;
+export type Theme = typeof themes.default
 
-export default theme;
+export default themes

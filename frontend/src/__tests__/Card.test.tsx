@@ -1,8 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { ThemeProvider } from 'styled-components'
+import { ThemeProvider } from '../contexts/ThemeContext'
 import { Card } from '../components/Card'
-import { theme } from '../styles/theme'
 import type { Card as CardType } from '../types/Card'
 
 // ─── 헬퍼 ────────────────────────────────────────────────────────────────────
@@ -17,7 +16,7 @@ const makeCard = (overrides: Partial<CardType> = {}): CardType => ({
 
 const renderCard = (cardData: CardType, onClick = vi.fn()) => {
   const result = render(
-    <ThemeProvider theme={theme}>
+    <ThemeProvider>
       <Card cardData={cardData} onClick={onClick} />
     </ThemeProvider>
   )

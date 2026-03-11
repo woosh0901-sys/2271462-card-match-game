@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
-import styled, { ThemeProvider } from 'styled-components'
+import styled from 'styled-components'
 import { GlobalStyle } from './styles/GlobalStyle'
-import theme from './styles/theme'
+import { ThemeProvider } from './contexts/ThemeContext'
 import { Header } from './components/Header'
 import { GameBoard } from './components/GameBoard'
 import { ResultModal } from './components/ResultModal'
@@ -10,7 +10,7 @@ import { ComboPopup } from './components/ComboPopup'
 import { SettingsModal } from './components/SettingsModal'
 import { GameProvider, useGameContext } from './contexts/GameContext'
 import { useTimer } from './hooks/useTimer'
-import { useBestScore } from './hooks/useBestScore'
+import { useStatistics } from './hooks/useStatistics'
 import { useSound } from './hooks/useSound'
 import { startGame } from './api/gameApi'
 import type { Difficulty } from './types/Card'
@@ -84,7 +84,7 @@ function Game() {
   useTimer()
 
   const { state, dispatch } = useGameContext()
-  const { getBestScore, trySetBestScore } = useBestScore()
+  const { getStats, recordWin, recordLoss } = useStatistics()
   const { playFlip, playMatch, playFail, playVictory, playGameOver } = useSound()
 
   // 승리 직후 최고기록 갱신 여부 tracking
@@ -121,17 +121,18 @@ function Game() {
     }
   }, [state.life, state.status, dispatch])
 
-  // ─── 효과음: 승리 / 게임오버 ─────────────────────────────────────────────────
+  // ─── 효과음 및 통계 반영 ──────────────────────────────────────────────────
   // useCallback으로 안정적인 참조 확보 → exhaustive-deps 경고 없이 의존성 최소화
   const handleGameEnd = useCallback(() => {
     if (state.status === 'VICTORY') {
       playVictory()
-      const newBest = trySetBestScore(state.difficulty, state.score)
+      const newBest = recordWin(state.difficulty, state.score)
       setIsNewBest(newBest)
     } else if (state.status === 'GAME_OVER') {
       playGameOver()
+      recordLoss(state.difficulty)
     }
-    // playVictory/playFail/trySetBestScore은 useCallback으로 안정적이므로 deps에 포함
+    // playVictory/playFail, recordWin 등은 useCallback으로 안정적이므로 deps에 포함
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.status, state.difficulty, state.score])
 
@@ -262,7 +263,7 @@ function Game() {
     )
   }
 
-  const bestScore = getBestScore(state.difficulty)
+  const currentStats = getStats(state.difficulty)
 
   return (
     <>
@@ -296,7 +297,7 @@ function Game() {
         result={state.status as 'VICTORY' | 'GAME_OVER'}
         onRestart={handleRestart}
         score={state.score}
-        bestScore={bestScore}
+        stats={currentStats}
         maxCombo={state.maxCombo}
         elapsedTime={state.elapsedTime}
         isNewBest={isNewBest}
@@ -368,7 +369,7 @@ function DifficultyGate() {
  */
 function App() {
   return (
-    <ThemeProvider theme={theme}>
+    <ThemeProvider>
       <GlobalStyle />
       <GameProvider>
         <DifficultyGate />
