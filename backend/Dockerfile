@@ -23,6 +23,9 @@ RUN npm run build
 # ─────────────────────────────────────────────────────────
 FROM node:20-alpine
 
+# Patch critical zlib vulnerability (CVE-2026-22184)
+RUN apk upgrade --no-cache zlib
+
 # non-root 그룹/사용자 생성
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 

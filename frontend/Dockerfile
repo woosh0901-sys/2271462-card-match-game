@@ -27,6 +27,9 @@ RUN npm run build
 # ─────────────────────────────────────────────────────────
 FROM nginx:alpine
 
+# Patch critical zlib vulnerability (CVE-2026-22184)
+RUN apk upgrade --no-cache zlib
+
 # 빌드 산출물만 복사 (node_modules 제외)
 COPY --from=builder /app/dist /usr/share/nginx/html
 
