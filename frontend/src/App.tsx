@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ThemeProvider } from 'styled-components'
-import styled from 'styled-components'
+import styled, { ThemeProvider } from 'styled-components'
 import { GlobalStyle } from './styles/GlobalStyle'
 import theme from './styles/theme'
 import { Header } from './components/Header'
@@ -8,8 +7,7 @@ import { GameBoard } from './components/GameBoard'
 import { ResultModal } from './components/ResultModal'
 import { DifficultyScreen } from './components/DifficultyScreen'
 import { ComboPopup } from './components/ComboPopup'
-import { GameProvider } from './contexts/GameContext'
-import { useGameContext } from './contexts/GameContext'
+import { GameProvider, useGameContext } from './contexts/GameContext'
 import { useTimer } from './hooks/useTimer'
 import { useBestScore } from './hooks/useBestScore'
 import { useSound } from './hooks/useSound'
@@ -36,9 +34,9 @@ const GameWrapper = styled.div`
   max-width: 900px;
 `
 
-const GameContainer = styled.div`
+const GameContainer = styled.div<{ $aspectRatio: string }>`
   width: 100%;
-  aspect-ratio: 1;
+  aspect-ratio: ${({ $aspectRatio }) => $aspectRatio};
   background-color: ${({ theme }) => theme.colors.cardFront};
   border-radius: ${({ theme }) => theme.borderRadius.lg};
   box-shadow: ${({ theme }) => theme.shadows.lg};
@@ -90,6 +88,19 @@ function Game() {
 
   // 승리 직후 최고기록 갱신 여부 tracking
   const [isNewBest, setIsNewBest] = useState(false)
+
+  // 난이도별 게임 컨테이너 종횡비 계산
+  const getAspectRatio = (difficulty: Difficulty) => {
+    switch (difficulty) {
+      case 'easy':
+        return '3/4' // 3열 4행
+      case 'hard':
+        return '5/4' // 5열 4행
+      case 'normal':
+      default:
+        return '1'   // 4열 4행 (1:1)
+    }
+  }
 
   // ─── 승리 조건 판정 (Plan.md 티켓 #18) ──────────────────────────────────────
   useEffect(() => {
@@ -212,7 +223,7 @@ function Game() {
   // ─── 로딩 / 에러 화면 ─────────────────────────────────────────────────────────
   if (state.isLoading) {
     return (
-      <GameContainer>
+      <GameContainer $aspectRatio={getAspectRatio(state.difficulty)}>
         <LoadingContainer data-testid="loading-screen">Loading...</LoadingContainer>
       </GameContainer>
     )
@@ -220,7 +231,7 @@ function Game() {
 
   if (state.error) {
     return (
-      <GameContainer>
+      <GameContainer $aspectRatio={getAspectRatio(state.difficulty)}>
         <ErrorContainer>
           <div>⚠️ 게임을 시작할 수 없습니다</div>
           <div>{state.error}</div>
@@ -243,7 +254,7 @@ function Game() {
           onHint={handleHint}
           isPlaying={state.status === 'PLAYING'}
         />
-        <GameContainer>
+        <GameContainer $aspectRatio={getAspectRatio(state.difficulty)}>
           <GameBoard
             cards={state.cards}
             onCardClick={handleCardClick}
