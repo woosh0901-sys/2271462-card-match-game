@@ -7,6 +7,7 @@ import { GameBoard } from './components/GameBoard'
 import { ResultModal } from './components/ResultModal'
 import { DifficultyScreen } from './components/DifficultyScreen'
 import { ComboPopup } from './components/ComboPopup'
+import { SettingsModal } from './components/SettingsModal'
 import { GameProvider, useGameContext } from './contexts/GameContext'
 import { useTimer } from './hooks/useTimer'
 import { useBestScore } from './hooks/useBestScore'
@@ -138,6 +139,21 @@ function Game() {
     handleGameEnd()
   }, [handleGameEnd])
 
+  // ─── ESC 키 이벤트 등록 (설정창/일시정지) ──────────────────────────────────
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (state.status === 'PLAYING') {
+          // 일시정지 상태 토글
+          dispatch({ type: 'SET_PAUSE', payload: !state.isPaused })
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [state.status, state.isPaused, dispatch])
+
   // ─── 매칭 판별 로직 (Plan.md 티켓 #16) ─────────────────────────────────────
   useEffect(() => {
     if (state.flippedCards.length !== 2) return
@@ -181,6 +197,7 @@ function Game() {
     if (state.flippedCards.length >= 2) return
     if (state.isMatching) return
     if (state.status !== 'PLAYING') return
+    if (state.isPaused) return // 일시정지 중 클릭 방지
 
     playFlip()
     dispatch({ type: 'FLIP_CARD', payload: { cardId } })
@@ -218,6 +235,11 @@ function Game() {
       dispatch({ type: 'SET_ERROR', payload: errorMessage })
       alert(`게임 재시작 실패\n\n${errorMessage}`)
     }
+  }
+
+  // ─── 메인 화면으로 돌아가기 핸들러 ──────────────────────────────────────────
+  const handleMainMenu = () => {
+    dispatch({ type: 'RESET_GAME' })
   }
 
   // ─── 로딩 / 에러 화면 ─────────────────────────────────────────────────────────
@@ -278,6 +300,13 @@ function Game() {
         maxCombo={state.maxCombo}
         elapsedTime={state.elapsedTime}
         isNewBest={isNewBest}
+      />
+
+      {/* 일시정지 (설정) 모달 */}
+      <SettingsModal
+        isOpen={state.isPaused}
+        onResume={() => dispatch({ type: 'SET_PAUSE', payload: false })}
+        onMainMenu={handleMainMenu}
       />
     </>
   )

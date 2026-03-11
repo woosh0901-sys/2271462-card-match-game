@@ -34,6 +34,7 @@ export const initialState: GameState = {
   gridCols: 4,
   hintUsed: false,
   isHinting: false,
+  isPaused: false,
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined)
@@ -71,6 +72,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         elapsedTime: 0,
         hintUsed: false,
         isHinting: false,
+        isPaused: false,
       }
 
     case 'SET_DIFFICULTY':
@@ -158,6 +160,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'SET_HINTING':
       return { ...state, isHinting: action.payload }
+
+    case 'SET_PAUSE':
+      // PLAYING 상태에서만 일시정지 가능
+      if (state.status !== 'PLAYING') return state
+      return { ...state, isPaused: action.payload }
 
     default:
       return state

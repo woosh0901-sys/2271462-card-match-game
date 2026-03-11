@@ -11,13 +11,13 @@ export function useTimer() {
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
     useEffect(() => {
-        // PLAYING 상태에서만 타이머 작동
-        if (state.status === 'PLAYING') {
+        // PLAYING 상태이고 게임이 일시정지(isPaused)되지 않았을 때만 작동
+        if (state.status === 'PLAYING' && !state.isPaused) {
             intervalRef.current = setInterval(() => {
                 dispatch({ type: 'TICK_TIMER' })
             }, 1000)
         } else {
-            // 게임 종료 시 타이머 정지
+            // 게임 종료/일시정지 시 타이머 정지
             if (intervalRef.current !== null) {
                 clearInterval(intervalRef.current)
                 intervalRef.current = null
@@ -30,5 +30,5 @@ export function useTimer() {
                 intervalRef.current = null
             }
         }
-    }, [state.status, dispatch])
+    }, [state.status, state.isPaused, dispatch])
 }

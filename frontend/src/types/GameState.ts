@@ -60,6 +60,9 @@ export interface GameState {
 
   /** 힌트 활성화 중 여부 (힌트 애니메이션 진행 중) */
   isHinting: boolean;
+
+  /** 일시 중지 여부 (ESC 키 설정창) */
+  isPaused: boolean;
 }
 
 /**
@@ -80,5 +83,6 @@ export type GameAction =
   | { type: 'SET_DIFFICULTY'; payload: { difficulty: Difficulty; gridCols: number } }
   | { type: 'TICK_TIMER' }
   | { type: 'USE_HINT' }
-  | { type: 'SET_HINTING'; payload: boolean };
+  | { type: 'SET_HINTING'; payload: boolean }
+  | { type: 'SET_PAUSE'; payload: boolean };
 
